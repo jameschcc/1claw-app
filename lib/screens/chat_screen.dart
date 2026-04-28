@@ -153,7 +153,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     if (thinking && index == msgs.length) {
                       return ThinkingIndicator(
-                          emoji: widget.profile.emoji);
+                          emoji: widget.profile.emoji,
+                          reasoning: chatProvider.reasoningText);
                     }
                     final msg = msgs[index];
                     return ChatBubble(

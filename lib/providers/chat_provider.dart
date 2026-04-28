@@ -1,43 +1,53 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../models/ws_message.dart';
 import '../services/websocket_service.dart';
 
+const int _maxMessagesPerProfile = 200;
+const String _cacheKey = 'chat_history_v1';
+
 /// Manages chat messages for the active profile.
-/// Stores messages in memory and sends/receives via WebSocket.
+/// Persists history via SharedPreferences, auto-restores on init.
 class ChatProvider extends ChangeNotifier {
   final WebSocketService _wsService;
   final Map<String, List<ChatMessage>> _conversations = {};
   String _currentProfileId = '';
   bool _isThinking = false;
+  String _reasoningText = '';
   ChatMessage? _replyTarget;
+  bool _loaded = false;
 
   ChatProvider(this._wsService) {
     _wsService.addMessageListener(_handleMessage);
+    _loadHistory();
   }
 
   List<ChatMessage> get messages =>
       _conversations[_currentProfileId] ?? [];
   String get currentProfileId => _currentProfileId;
   bool get isThinking => _isThinking;
+  String get reasoningText => _reasoningText;
   ChatMessage? get replyTarget => _replyTarget;
+  bool get isLoaded => _loaded;
 
-  /// Switch to a different profile's conversation.
   void switchProfile(String profileId) {
     _currentProfileId = profileId;
     _conversations.putIfAbsent(profileId, () => []);
     _isThinking = false;
+    _reasoningText = '';
     _replyTarget = null;
     notifyListeners();
   }
 
-  /// Send a chat message to the current profile.
   void sendMessage(String content) {
     if (content.trim().isEmpty || _currentProfileId.isEmpty) return;
 
     _replyTarget = null;
+    _reasoningText = '';
     final msgId = _generateId();
     final userMsg = ChatMessage(
       id: msgId,
@@ -48,26 +58,32 @@ class ChatProvider extends ChangeNotifier {
 
     _getConversation().add(userMsg);
     _isThinking = true;
+    _saveHistory();
     notifyListeners();
 
     _wsService.sendChat(_currentProfileId, content.trim(), messageId: msgId);
   }
 
-  /// Set a message to reply to (highlight it in chat).
   void setReplyTarget(ChatMessage msg) {
     _replyTarget = msg;
     notifyListeners();
   }
 
-  /// Clear reply target.
   void clearReplyTarget() {
     _replyTarget = null;
     notifyListeners();
   }
 
-  /// Handle incoming WebSocket messages.
   void _handleMessage(WsMessage msg) {
     switch (msg.type) {
+      case 'reasoning':
+        // Intermediate reasoning text from the AI
+        if (msg.content != null && msg.profileId != null) {
+          _reasoningText = msg.content!;
+          _isThinking = true;
+          notifyListeners();
+        }
+
       case 'chat':
         if (msg.content != null && msg.profileId != null) {
           final agentMsg = ChatMessage(
@@ -78,6 +94,8 @@ class ChatProvider extends ChangeNotifier {
           );
           _getConversationFor(msg.profileId!).add(agentMsg);
           _isThinking = false;
+          _reasoningText = '';
+          _saveHistory();
           notifyListeners();
         }
 
@@ -92,6 +110,8 @@ class ChatProvider extends ChangeNotifier {
           );
           _getConversationFor(msg.profileId!).add(errorMsg);
           _isThinking = false;
+          _reasoningText = '';
+          _saveHistory();
           notifyListeners();
         }
 
@@ -116,17 +136,63 @@ class ChatProvider extends ChangeNotifier {
     return 'msg_${DateTime.now().millisecondsSinceEpoch}_${r.nextInt(9999)}';
   }
 
+  // --- Persistence ---
+
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final all = <String, List<Map<String, dynamic>>>{};
+      for (final e in _conversations.entries) {
+        if (e.value.isEmpty) continue;
+        // Trim old messages
+        final kept = e.value.length > _maxMessagesPerProfile
+            ? e.value.sublist(e.value.length - _maxMessagesPerProfile)
+            : e.value;
+        all[e.key] = kept.map((m) => m.toJson()).toList();
+      }
+      await prefs.setString(_cacheKey, jsonEncode(all));
+    } catch (e) {
+      debugPrint('[chat] save error: $e');
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null || raw.isEmpty) return;
+
+      final all = jsonDecode(raw) as Map<String, dynamic>;
+      for (final e in all.entries) {
+        final list = (e.value as List)
+            .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+            .toList();
+        if (list.isNotEmpty) {
+          _conversations[e.key] = list;
+        }
+      }
+      _loaded = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[chat] load error: $e');
+    }
+  }
+
   void clearConversation() {
     _conversations[_currentProfileId] = [];
     _isThinking = false;
+    _reasoningText = '';
     _replyTarget = null;
+    _saveHistory();
     notifyListeners();
   }
 
   void clearAll() {
     _conversations.clear();
     _isThinking = false;
+    _reasoningText = '';
     _replyTarget = null;
+    _saveHistory();
     notifyListeners();
   }
 }
