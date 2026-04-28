@@ -5,6 +5,8 @@ class AgentProfile {
   final String description;
   final String color;
   bool online;
+  String status;   // "working" | "free" | "idle"
+  int tasksQueue;
 
   AgentProfile({
     required this.id,
@@ -13,6 +15,8 @@ class AgentProfile {
     required this.description,
     this.color = '#0078D7',
     this.online = false,
+    this.status = 'free',
+    this.tasksQueue = 0,
   });
 
   factory AgentProfile.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class AgentProfile {
       description: json['description'] as String? ?? '',
       color: json['color'] as String? ?? '#0078D7',
       online: json['online'] as bool? ?? false,
+      status: json['status'] as String? ?? 'free',
+      tasksQueue: json['tasks_queue'] as int? ?? 0,
     );
   }
 
@@ -33,6 +39,8 @@ class AgentProfile {
         'description': description,
         'color': color,
         'online': online,
+        'status': status,
+        'tasks_queue': tasksQueue,
   };
 
   /// Parse hex color string to Flutter Color
