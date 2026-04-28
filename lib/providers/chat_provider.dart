@@ -195,4 +195,16 @@ class ChatProvider extends ChangeNotifier {
     _saveHistory();
     notifyListeners();
   }
+
+  /// Get the last message preview for a given profile (for sidebar).
+  /// Returns empty string if no messages. Trims newlines for single-line preview.
+  String getLastMessageForProfile(String profileId) {
+    final msgs = _conversations[profileId];
+    if (msgs == null || msgs.isEmpty) return '';
+    final lastMsg = msgs.last;
+    final prefix = lastMsg.isUser ? 'You: ' : '';
+    final content = lastMsg.content.replaceAll('\n', ' ').trim();
+    if (content.length > 60) return '$prefix${content.substring(0, 60)}...';
+    return '$prefix$content';
+  }
 }
