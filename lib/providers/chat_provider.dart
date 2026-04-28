@@ -13,7 +13,7 @@ class ChatProvider extends ChangeNotifier {
   String _currentProfileId = '';
 
   ChatProvider(this._wsService) {
-    _wsService.onMessage = _handleMessage;
+    _wsService.addMessageListener(_handleMessage);
   }
 
   List<ChatMessage> get messages {

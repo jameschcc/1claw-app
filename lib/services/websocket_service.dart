@@ -23,11 +23,18 @@ class WebSocketService {
   /// Callback when connection state changes.
   void Function(bool connected)? onConnectionChange;
 
-  /// Callback when a message is received.
-  void Function(WsMessage message)? onMessage;
+  /// Message listeners (multiple, not overwritten).
+  final List<void Function(WsMessage)> _messageListeners = [];
 
-  /// Callback when profile status updates arrive.
-  void Function(List<Map<String, dynamic>> profiles)? onProfilesUpdate;
+  /// Register a listener for incoming messages.
+  void addMessageListener(void Function(WsMessage) listener) {
+    _messageListeners.add(listener);
+  }
+
+  /// Remove a previously registered listener.
+  void removeMessageListener(void Function(WsMessage) listener) {
+    _messageListeners.remove(listener);
+  }
 
   WebSocketService();
 
@@ -155,8 +162,10 @@ class WebSocketService {
         break;
     }
 
-    // Always forward the raw message
-    onMessage?.call(msg);
+    // Forward to all listeners
+    for (final listener in _messageListeners) {
+      listener(msg);
+    }
   }
 
   void _handleDisconnect() {

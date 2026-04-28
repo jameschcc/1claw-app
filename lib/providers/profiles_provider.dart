@@ -17,7 +17,7 @@ class ProfilesProvider extends ChangeNotifier {
       notifyListeners();
     };
 
-    _wsService.onMessage = (msg) {
+    _wsService.addMessageListener((msg) {
       if (msg.type == 'status' && msg.profiles != null) {
         final profiles = msg.profiles!
             .map((p) => AgentProfile.fromJson(p as Map<String, dynamic>))
@@ -25,7 +25,7 @@ class ProfilesProvider extends ChangeNotifier {
         _profiles = profiles;
         notifyListeners();
       }
-    };
+    });
   }
 
   List<AgentProfile> get profiles => List.unmodifiable(_profiles);
