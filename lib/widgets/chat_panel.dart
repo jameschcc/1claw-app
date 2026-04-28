@@ -65,8 +65,7 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.enter) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
       if (!HardwareKeyboard.instance.isShiftPressed) {
         _sendMessage();
         return KeyEventResult.handled;
@@ -116,6 +115,31 @@ class _ChatPanelState extends State<ChatPanel> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
+  Future<void> _confirmCancel() async {
+    final shouldCancel =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('中止回答？'),
+            content: const Text('当前 agent 正在回复。要立即中止这次回答吗？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('继续等待'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('中止'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldCancel || !mounted) return;
+    context.read<ChatProvider>().cancelActiveResponse();
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = widget.profile;
@@ -143,9 +167,13 @@ class _ChatPanelState extends State<ChatPanel> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(profile.name,
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text(
+                    profile.name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Row(
                     children: [
                       Container(
@@ -183,22 +211,21 @@ class _ChatPanelState extends State<ChatPanel> {
               // One-time scroll after history loads (belt & suspenders)
               if (chatProvider.isLoaded && !_initialScrollDone) {
                 _initialScrollDone = true;
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _scrollToBottom(force: true));
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _scrollToBottom(force: true),
+                );
               }
 
               final msgs = chatProvider.messages;
               final thinking = chatProvider.isThinking;
-              final hasReasoning =
-                  chatProvider.reasoningText.trim().isNotEmpty;
+              final hasReasoning = chatProvider.reasoningText.trim().isNotEmpty;
 
               if (msgs.isEmpty && !thinking && !hasReasoning) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(profile.emoji,
-                          style: const TextStyle(fontSize: 48)),
+                      Text(profile.emoji, style: const TextStyle(fontSize: 48)),
                       const SizedBox(height: 16),
                       Text(
                         'Start a conversation with\n${profile.name}',
@@ -236,10 +263,11 @@ class _ChatPanelState extends State<ChatPanel> {
                   // Show retry on user messages where agent didn't respond:
                   // - newest message and not thinking (agent finished but no reply)
                   // - next message is also user (agent skipped this one)
-                  final needsRetry = msg.isUser && (
-                    (msgIndex == msgs.length - 1 && !thinking) ||
-                    (msgIndex < msgs.length - 1 && msgs[msgIndex + 1].isUser)
-                  );
+                  final needsRetry =
+                      msg.isUser &&
+                      ((msgIndex == msgs.length - 1 && !thinking) ||
+                          (msgIndex < msgs.length - 1 &&
+                              msgs[msgIndex + 1].isUser));
                   return ChatBubble(
                     message: msg,
                     profileName: profile.name,
@@ -263,8 +291,7 @@ class _ChatPanelState extends State<ChatPanel> {
             if (target == null) return const SizedBox.shrink();
             return Container(
               color: color.withValues(alpha: 0.1),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Row(
                 children: [
                   Icon(Icons.reply, size: 16, color: color),
@@ -316,18 +343,16 @@ class _ChatPanelState extends State<ChatPanel> {
                       decoration: InputDecoration(
                         hintText: 'Message ${profile.name}...',
                         hintStyle: TextStyle(
-                          color:
-                              isDark ? Colors.white38 : Colors.black38,
+                          color: isDark ? Colors.white38 : Colors.black38,
                         ),
                         filled: true,
                         fillColor: isThinking
                             ? (isDark
-                                ? AppConstants.darkCard
-                                    .withValues(alpha: 0.5)
-                                : Colors.grey[200])
+                                  ? AppConstants.darkCard.withValues(alpha: 0.5)
+                                  : Colors.grey[200])
                             : (isDark
-                                ? AppConstants.darkCard
-                                : Colors.grey[100]),
+                                  ? AppConstants.darkCard
+                                  : Colors.grey[100]),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
@@ -352,12 +377,10 @@ class _ChatPanelState extends State<ChatPanel> {
                     ),
                     child: IconButton(
                       icon: Icon(
-                        isThinking
-                            ? Icons.hourglass_top
-                            : Icons.send_rounded,
+                        isThinking ? Icons.hourglass_top : Icons.send_rounded,
                         color: Colors.white,
                       ),
-                      onPressed: isThinking ? null : _sendMessage,
+                      onPressed: isThinking ? _confirmCancel : _sendMessage,
                     ),
                   ),
                 ],

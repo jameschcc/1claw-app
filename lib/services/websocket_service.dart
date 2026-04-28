@@ -102,7 +102,13 @@ class WebSocketService {
   }
 
   /// Send a chat message to a specific agent profile.
-  void sendChat(String profileId, String content, {String? messageId}) {
+  void sendChat(
+    String profileId,
+    String content, {
+    String? messageId,
+    String? sessionId,
+    List<Map<String, String>>? history,
+  }) {
     if (!_connected) {
       debugPrint('[ws] Cannot send: not connected');
       return;
@@ -112,6 +118,24 @@ class WebSocketService {
       profileId: profileId,
       content: content,
       id: messageId ?? _generateId(),
+      sessionId: sessionId,
+      history: history,
+    );
+    _send(msg);
+  }
+
+  /// Request cancellation of the in-flight response for a session.
+  void cancelChat(String profileId, {String? messageId, String? sessionId}) {
+    if (!_connected) {
+      debugPrint('[ws] Cannot cancel: not connected');
+      return;
+    }
+
+    final msg = WsMessage(
+      type: 'cancel_chat',
+      profileId: profileId,
+      id: messageId,
+      sessionId: sessionId,
     );
     _send(msg);
   }
@@ -194,10 +218,7 @@ class WebSocketService {
 
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
-    final delay = min(
-      pow(2, _reconnectAttempt).toInt(),
-      _maxReconnectDelay,
-    );
+    final delay = min(pow(2, _reconnectAttempt).toInt(), _maxReconnectDelay);
     _reconnectAttempt++;
     debugPrint('[ws] Reconnecting in ${delay}s (attempt $_reconnectAttempt)');
     _reconnectTimer = Timer(Duration(seconds: delay), () {
