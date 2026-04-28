@@ -17,8 +17,15 @@ String _avatarLetter(String name) {
   return name[0].toUpperCase();
 }
 
-/// Chat message bubble with long-press context menu (Copy / Reply).
-class ChatBubble extends StatelessWidget {
+/// Lighten a color by [amount] in HSL lightness space.
+Color _lighten(Color c, double amount) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
+}
+
+/// Chat message bubble with selectable text, hover highlight,
+/// and long-press context menu (Copy / Reply).
+class ChatBubble extends StatefulWidget {
   final ChatMessage message;
   final bool isReplyTarget;
   final VoidCallback? onReply;
@@ -33,16 +40,35 @@ class ChatBubble extends StatelessWidget {
   });
 
   @override
+  State<ChatBubble> createState() => _ChatBubbleState();
+}
+
+class _ChatBubbleState extends State<ChatBubble> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final isUser = message.isUser;
+    final isUser = widget.message.isUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final name = profileName ?? message.profileId;
+    final name = widget.profileName ?? widget.message.profileId;
     final color = _avatarColor(name);
     final letter = _avatarLetter(name);
-    // choose contrasting text color
     final textColor = color.computeLuminance() > 0.5
         ? Colors.black87
         : Colors.white;
+
+    // Compute bubble background color
+    final baseBubbleColor = widget.isReplyTarget
+        ? (isUser
+            ? AppConstants.primaryBlue.withValues(alpha: 0.7)
+            : AppConstants.primaryBlue.withValues(alpha: 0.15))
+        : isUser
+            ? AppConstants.primaryBlue
+            : (isDark ? AppConstants.darkCard : Colors.grey[100]!);
+
+    // Slightly lighten on hover
+    final bubbleColor =
+        _isHovered ? _lighten(baseBubbleColor, 0.08) : baseBubbleColor;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -76,56 +102,53 @@ class ChatBubble extends StatelessWidget {
             child: GestureDetector(
               onLongPress: () => _showContextMenu(context),
               onSecondaryTap: () => _showContextMenu(context),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.75,
-                ),
-                decoration: BoxDecoration(
-                  color: isReplyTarget
-                      ? (isUser
-                          ? AppConstants.primaryBlue.withValues(alpha: 0.7)
-                          : AppConstants.primaryBlue.withValues(alpha: 0.15))
-                      : isUser
-                          ? AppConstants.primaryBlue
-                          : (isDark
-                              ? AppConstants.darkCard
-                              : Colors.grey[100]),
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
-                    topRight: const Radius.circular(16),
-                    bottomLeft: Radius.circular(isUser ? 16 : 4),
-                    bottomRight: Radius.circular(isUser ? 4 : 16),
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _isHovered = true),
+                onExit: (_) => setState(() => _isHovered = false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
                   ),
-                ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      message.content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isUser
-                            ? Colors.white
-                            : (isDark ? Colors.white : Colors.black87),
-                      ),
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isUser ? 16 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 16),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatTime(message.timestamp),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isUser
-                            ? Colors.white60
-                            : (isDark
-                                ? Colors.white38
-                                : Colors.black38),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Selectable text so users can copy portions
+                      SelectableText(
+                        widget.message.content,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isUser
+                              ? Colors.white
+                              : (isDark ? Colors.white : Colors.black87),
+                        ),
                       ),
-                      textAlign: TextAlign.end,
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(widget.message.timestamp),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isUser
+                              ? Colors.white60
+                              : (isDark
+                                  ? Colors.white38
+                                  : Colors.black38),
+                        ),
+                        textAlign: TextAlign.end,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -149,7 +172,6 @@ class ChatBubble extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
               Container(
                 width: 36,
                 height: 4,
@@ -163,7 +185,8 @@ class ChatBubble extends StatelessWidget {
                 leading: const Icon(Icons.copy),
                 title: const Text('Copy'),
                 onTap: () {
-                  Clipboard.setData(ClipboardData(text: message.content));
+                  Clipboard.setData(
+                      ClipboardData(text: widget.message.content));
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -178,7 +201,7 @@ class ChatBubble extends StatelessWidget {
                 title: const Text('Reply'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  onReply?.call();
+                  widget.onReply?.call();
                 },
               ),
             ],
