@@ -89,6 +89,7 @@ class _UserListItemState extends State<UserListItem> {
         ),
         child: GestureDetector(
           onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
