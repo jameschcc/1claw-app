@@ -106,6 +106,14 @@ class _ChatPanelState extends State<ChatPanel> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
+  /// Retry sending a message that the agent didn't respond to.
+  void _retryMessage(String content) {
+    final chatProvider = context.read<ChatProvider>();
+    chatProvider.sendMessage(content);
+    _autoScroll = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = widget.profile;
@@ -219,11 +227,22 @@ class _ChatPanelState extends State<ChatPanel> {
                     );
                   }
                   final msg = msgs[index];
+                  // Show retry on user messages where agent didn't respond:
+                  // - last message and not thinking (agent finished but no reply)
+                  // - next message is also user (agent skipped this one)
+                  final needsRetry = msg.isUser && (
+                    (index == msgs.length - 1 && !thinking) ||
+                    (index < msgs.length - 1 && msgs[index + 1].isUser)
+                  );
                   return ChatBubble(
                     message: msg,
                     profileName: profile.name,
                     isReplyTarget: chatProvider.replyTarget?.id == msg.id,
                     onReply: () => chatProvider.setReplyTarget(msg),
+                    showRetry: needsRetry,
+                    onRetry: needsRetry
+                        ? () => _retryMessage(msg.content)
+                        : null,
                   );
                 },
               );

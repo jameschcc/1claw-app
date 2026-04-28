@@ -25,11 +25,14 @@ Color _lighten(Color c, double amount) {
 
 /// Chat message bubble with selectable text, hover highlight,
 /// and long-press context menu (Copy / Reply).
+/// Shows a retry icon on user messages that the agent didn't respond to.
 class ChatBubble extends StatefulWidget {
   final ChatMessage message;
   final bool isReplyTarget;
   final VoidCallback? onReply;
   final String? profileName;
+  final bool showRetry;
+  final VoidCallback? onRetry;
 
   const ChatBubble({
     super.key,
@@ -37,6 +40,8 @@ class ChatBubble extends StatefulWidget {
     this.isReplyTarget = false,
     this.onReply,
     this.profileName,
+    this.showRetry = false,
+    this.onRetry,
   });
 
   @override
@@ -77,6 +82,34 @@ class _ChatBubbleState extends State<ChatBubble> {
             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Retry icon for user messages without agent response
+          if (isUser && widget.showRetry) ...[
+            GestureDetector(
+              onTap: widget.onRetry,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Tooltip(
+                  message: 'Resend message',
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.replay,
+                      size: 16,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          // Avatar for agent messages
           if (!isUser) ...[
             Container(
               width: 28,
@@ -181,6 +214,15 @@ class _ChatBubbleState extends State<ChatBubble> {
                 ),
               ),
               const SizedBox(height: 8),
+              if (widget.message.isUser && widget.onRetry != null)
+                ListTile(
+                  leading: const Icon(Icons.replay),
+                  title: const Text('Retry'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onRetry?.call();
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.copy),
                 title: const Text('Copy'),
