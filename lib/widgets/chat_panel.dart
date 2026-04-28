@@ -182,8 +182,10 @@ class _ChatPanelState extends State<ChatPanel> {
 
               final msgs = chatProvider.messages;
               final thinking = chatProvider.isThinking;
+              final hasReasoning =
+                  chatProvider.reasoningText.trim().isNotEmpty;
 
-              if (msgs.isEmpty && !thinking) {
+              if (msgs.isEmpty && !thinking && !hasReasoning) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -207,12 +209,14 @@ class _ChatPanelState extends State<ChatPanel> {
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: msgs.length + (thinking ? 1 : 0),
+                itemCount: msgs.length + ((thinking || hasReasoning) ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if (thinking && index == msgs.length) {
+                  if ((thinking || hasReasoning) && index == msgs.length) {
                     return ThinkingIndicator(
-                        emoji: profile.emoji,
-                        reasoning: chatProvider.reasoningText);
+                      emoji: profile.emoji,
+                      reasoning: chatProvider.reasoningText,
+                      isActive: thinking,
+                    );
                   }
                   final msg = msgs[index];
                   return ChatBubble(

@@ -82,8 +82,17 @@ class ChatProvider extends ChangeNotifier {
     switch (msg.type) {
       case 'reasoning':
         // Intermediate reasoning text from the AI
-        if (msg.content != null && msg.profileId != null) {
-          _reasoningText = msg.content!;
+        if (msg.content != null && msg.profileId == _currentProfileId) {
+          final nextReasoning = msg.content!.trim();
+          if (nextReasoning.isEmpty) {
+            break;
+          }
+
+          if (_reasoningText.isEmpty || nextReasoning.startsWith(_reasoningText)) {
+            _reasoningText = nextReasoning;
+          } else if (!_reasoningText.contains(nextReasoning)) {
+            _reasoningText = '$_reasoningText\n$nextReasoning';
+          }
           _isThinking = true;
           notifyListeners();
         }
@@ -103,7 +112,6 @@ class ChatProvider extends ChangeNotifier {
                 (_unreadCounts[msg.profileId!] ?? 0) + 1;
           }
           _isThinking = false;
-          _reasoningText = '';
           _saveHistory();
           notifyListeners();
         }

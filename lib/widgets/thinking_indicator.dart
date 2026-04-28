@@ -6,11 +6,13 @@ import '../config/constants.dart';
 class ThinkingIndicator extends StatefulWidget {
   final String emoji;
   final String reasoning;
+  final bool isActive;
 
   const ThinkingIndicator({
     super.key,
     this.emoji = '🤖',
     this.reasoning = '',
+    this.isActive = true,
   });
 
   @override
@@ -42,7 +44,22 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hasReasoning = widget.reasoning.isNotEmpty;
+    final reasoning = widget.reasoning.trim();
+    final hasReasoning = reasoning.isNotEmpty;
+    final statusLabel = widget.isActive ? 'Thinking' : 'Thought process';
+    final reasoningText = hasReasoning
+        ? reasoning
+        : 'Waiting for reasoning updates...';
+    const reasoningFontSize = 12.0;
+    const reasoningLineHeight = 1.35;
+    const reasoningVisibleLines = 3;
+    final reasoningHeight =
+        reasoningFontSize * reasoningLineHeight * reasoningVisibleLines;
+    final gradient = const LinearGradient(
+      colors: [Color(0xFFC0C0C0), Color(0xFF808080)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -84,7 +101,7 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Thinking',
+                        statusLabel,
                         style: TextStyle(
                           fontSize: 13,
                           color: isDark ? Colors.white54 : Colors.black54,
@@ -103,31 +120,56 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                       ),
                     ],
                   ),
-                  // Reasoning text (if available)
-                  if (hasReasoning) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 120),
-                      decoration: BoxDecoration(
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.white : Colors.black)
+                          .withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
                         color: (isDark ? Colors.white : Colors.black)
-                            .withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(8),
+                            .withValues(alpha: 0.06),
                       ),
-                      padding: const EdgeInsets.all(8),
-                      child: SingleChildScrollView(
-                        child: Text(
-                          widget.reasoning,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color:
-                                isDark ? Colors.white38 : Colors.black45,
-                            fontStyle: FontStyle.italic,
-                            height: 1.4,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    child: SizedBox(
+                      height: reasoningHeight,
+                      child: ScrollConfiguration(
+                        behavior: const MaterialScrollBehavior().copyWith(
+                          scrollbars: false,
+                        ),
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return ShaderMask(
+                                blendMode: BlendMode.srcIn,
+                                shaderCallback: (bounds) => gradient.createShader(
+                                  Rect.fromLTWH(
+                                    0,
+                                    0,
+                                    constraints.maxWidth,
+                                    bounds.height,
+                                  ),
+                                ),
+                                child: Text(
+                                  reasoningText,
+                                  style: const TextStyle(
+                                    fontSize: reasoningFontSize,
+                                    fontStyle: FontStyle.italic,
+                                    height: reasoningLineHeight,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
