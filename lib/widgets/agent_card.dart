@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
 
 /// Compact metro-style card for each agent profile.
-/// Max 200px wide. Shows status (working/free) and tasks queue in small font.
+/// Max 200px wide. Long-press/right-click for context menu with pin + info.
 class AgentCard extends StatelessWidget {
   final AgentProfile profile;
   final bool isActive;
   final VoidCallback onTap;
+  final VoidCallback? onTogglePin;
 
   const AgentCard({
     super.key,
     required this.profile,
     required this.isActive,
     required this.onTap,
+    this.onTogglePin,
   });
 
   @override
@@ -22,11 +25,19 @@ class AgentCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = profile.status == 'working'
         ? Colors.orangeAccent
-        : AppConstants.onlineGreen;
-    final statusLabel = profile.status == 'working' ? 'Working' : 'Free';
+        : profile.status == 'starting'
+            ? Colors.amber
+            : AppConstants.onlineGreen;
+    final statusLabel = profile.status == 'working'
+        ? 'Working'
+        : profile.status == 'starting'
+            ? 'Starting...'
+            : 'Free';
 
     return GestureDetector(
       onTap: profile.online ? onTap : null,
+      onLongPress: () => _showContextMenu(context),
+      onSecondaryTap: () => _showContextMenu(context),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 200),
         decoration: BoxDecoration(
@@ -54,6 +65,12 @@ class AgentCard extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // Star icon if pinned
+                  if (profile.isPinned)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Icon(Icons.star, size: 12, color: Colors.amber),
+                    ),
                   // Emoji
                   Text(profile.emoji, style: const TextStyle(fontSize: 24)),
                   const SizedBox(height: 6),
@@ -72,7 +89,7 @@ class AgentCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Status + tasks on one line
+                  // Status + tasks
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -127,6 +144,73 @@ class AgentCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showContextMenu(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Pin toggle
+              ListTile(
+                leading: Icon(
+                  profile.isPinned ? Icons.star : Icons.star_border,
+                  color: profile.isPinned ? Colors.amber : null,
+                ),
+                title: Text(profile.isPinned
+                    ? 'Unpin from favorites'
+                    : 'Pin as favorite'),
+                subtitle: Text(
+                  profile.isPinned
+                      ? 'Remove from top row'
+                      : 'Show at top of list',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onTogglePin?.call();
+                },
+              ),
+              const Divider(indent: 16, endIndent: 16),
+              // Description (expandable)
+              ExpansionTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Description'),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Text(
+                      profile.description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

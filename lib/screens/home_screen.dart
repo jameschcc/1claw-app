@@ -7,7 +7,6 @@ import '../widgets/connection_indicator.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
 
-/// Main home screen with metro-style card grid of agent profiles.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -17,13 +16,10 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '1Claw',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-        ),
+        title: const Text('1Claw',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         centerTitle: false,
         actions: [
-          // Connection indicator
           Consumer<ProfilesProvider>(
             builder: (_, provider, __) => Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -33,13 +29,10 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Settings
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+                context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
@@ -50,33 +43,21 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    '🤖',
-                    style: TextStyle(fontSize: 64),
-                  ),
+                  const Text('🤖', style: TextStyle(fontSize: 64)),
                   const SizedBox(height: 16),
-                  Text(
-                    'No agents connected',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: isDark ? Colors.white54 : Colors.black54,
-                    ),
-                  ),
+                  Text('No agents connected',
+                      style: TextStyle(
+                          fontSize: 18,
+                          color: isDark ? Colors.white54 : Colors.black54)),
                   const SizedBox(height: 8),
-                  Text(
-                    'Connect to a 1Claw server to get started',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.white38 : Colors.black38,
-                    ),
-                  ),
+                  Text('Connect to a 1Claw server to get started',
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.white38 : Colors.black38)),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const SettingsScreen()),
-                    ),
+                    onPressed: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SettingsScreen())),
                     icon: const Icon(Icons.link),
                     label: const Text('Configure Server'),
                   ),
@@ -90,17 +71,30 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 12),
-                  child: Text(
-                    'Your Agents',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : Colors.black87,
-                    ),
+                  child: Row(
+                    children: [
+                      Text('Your Agents',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : Colors.black87)),
+                      if (provider.hasPinned()) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        Text(
+                          '${provider.pinnedProfiles.length}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white38 : Colors.black38),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                // Grid
                 Expanded(
                   child: GridView.builder(
                     gridDelegate:
@@ -113,21 +107,38 @@ class HomeScreen extends StatelessWidget {
                     itemCount: provider.profiles.length,
                     itemBuilder: (context, index) {
                       final profile = provider.profiles[index];
-                      return AgentCard(
-                        profile: profile,
-                        isActive:
-                            profile.id == provider.activeProfileId,
-                        onTap: () {
-                          provider.setActiveProfile(profile.id);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                profile: profile,
+                      final isPinned = index < provider.pinnedProfiles.length;
+                      return Column(
+                        children: [
+                          // Star divider for pinned section
+                          if (isPinned && index == provider.pinnedProfiles.length - 1)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: List.filled(3, Expanded(
+                                  child: Divider(
+                                    color: Colors.amber.withValues(alpha: 0.3),
+                                    thickness: 0.5,
+                                  ),
+                                )),
                               ),
                             ),
-                          );
-                        },
+                          Expanded(
+                            child: AgentCard(
+                              profile: profile,
+                              isActive: profile.id == provider.activeProfileId,
+                              onTap: () {
+                                provider.setActiveProfile(profile.id);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => ChatScreen(profile: profile)),
+                                );
+                              },
+                              onTogglePin: () => provider.togglePin(profile.id),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),

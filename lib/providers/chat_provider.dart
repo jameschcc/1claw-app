@@ -11,23 +11,25 @@ class ChatProvider extends ChangeNotifier {
   final WebSocketService _wsService;
   final Map<String, List<ChatMessage>> _conversations = {};
   String _currentProfileId = '';
+  bool _isThinking = false;
+  ChatMessage? _replyTarget;
 
   ChatProvider(this._wsService) {
     _wsService.addMessageListener(_handleMessage);
   }
 
-  List<ChatMessage> get messages {
-    return _conversations[_currentProfileId] ?? [];
-  }
-
+  List<ChatMessage> get messages =>
+      _conversations[_currentProfileId] ?? [];
   String get currentProfileId => _currentProfileId;
+  bool get isThinking => _isThinking;
+  ChatMessage? get replyTarget => _replyTarget;
 
   /// Switch to a different profile's conversation.
   void switchProfile(String profileId) {
     _currentProfileId = profileId;
-    if (!_conversations.containsKey(profileId)) {
-      _conversations[profileId] = [];
-    }
+    _conversations.putIfAbsent(profileId, () => []);
+    _isThinking = false;
+    _replyTarget = null;
     notifyListeners();
   }
 
@@ -35,6 +37,7 @@ class ChatProvider extends ChangeNotifier {
   void sendMessage(String content) {
     if (content.trim().isEmpty || _currentProfileId.isEmpty) return;
 
+    _replyTarget = null;
     final msgId = _generateId();
     final userMsg = ChatMessage(
       id: msgId,
@@ -44,9 +47,22 @@ class ChatProvider extends ChangeNotifier {
     );
 
     _getConversation().add(userMsg);
+    _isThinking = true;
     notifyListeners();
 
     _wsService.sendChat(_currentProfileId, content.trim(), messageId: msgId);
+  }
+
+  /// Set a message to reply to (highlight it in chat).
+  void setReplyTarget(ChatMessage msg) {
+    _replyTarget = msg;
+    notifyListeners();
+  }
+
+  /// Clear reply target.
+  void clearReplyTarget() {
+    _replyTarget = null;
+    notifyListeners();
   }
 
   /// Handle incoming WebSocket messages.
@@ -61,6 +77,7 @@ class ChatProvider extends ChangeNotifier {
             role: 'agent',
           );
           _getConversationFor(msg.profileId!).add(agentMsg);
+          _isThinking = false;
           notifyListeners();
         }
 
@@ -74,13 +91,11 @@ class ChatProvider extends ChangeNotifier {
             role: 'agent',
           );
           _getConversationFor(msg.profileId!).add(errorMsg);
+          _isThinking = false;
           notifyListeners();
         }
 
       case 'status':
-        // Profile status update — handled by ProfilesProvider
-        break;
-
       case 'pong':
         break;
     }
@@ -101,15 +116,17 @@ class ChatProvider extends ChangeNotifier {
     return 'msg_${DateTime.now().millisecondsSinceEpoch}_${r.nextInt(9999)}';
   }
 
-  /// Clear all messages for the current profile.
   void clearConversation() {
     _conversations[_currentProfileId] = [];
+    _isThinking = false;
+    _replyTarget = null;
     notifyListeners();
   }
 
-  /// Clear all conversations.
   void clearAll() {
     _conversations.clear();
+    _isThinking = false;
+    _replyTarget = null;
     notifyListeners();
   }
 }

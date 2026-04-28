@@ -4,6 +4,7 @@ import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
+import '../widgets/thinking_indicator.dart';
 
 /// Chat screen for conversing with a specific agent profile.
 class ChatScreen extends StatefulWidget {
@@ -18,14 +19,15 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _autoScroll = true;
 
   @override
   void initState() {
     super.initState();
-    // Switch to this profile in chat provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChatProvider>().switchProfile(widget.profile.id);
     });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -35,27 +37,37 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    final text = _inputController.text.trim();
-    if (text.isEmpty) return;
-
-    context.read<ChatProvider>().sendMessage(text);
-    _inputController.clear();
-
-    // Scroll to bottom after message is added
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-    });
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final max = _scrollController.position.maxScrollExtent;
+      final current = _scrollController.position.pixels;
+      _autoScroll = (max - current) < 80;
+    }
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
+    if (_autoScroll && _scrollController.hasClients) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
     }
+  }
+
+  void _sendMessage({String? prepend}) {
+    var text = _inputController.text.trim();
+    if (prepend != null && text.isNotEmpty) {
+      text = '$prepend $text';
+    }
+    if (text.isEmpty) return;
+
+    final chatProvider = context.read<ChatProvider>();
+    chatProvider.clearReplyTarget();
+    chatProvider.sendMessage(text);
+    _inputController.clear();
+    _autoScroll = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
   @override
@@ -76,11 +88,9 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.profile.name,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                Text(widget.profile.name,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600)),
                 Text(
                   widget.profile.online ? 'Online' : 'Offline',
                   style: TextStyle(
@@ -104,37 +114,31 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Messages list
+          // Messages list + thinking indicator
           Expanded(
             child: Consumer<ChatProvider>(
               builder: (context, chatProvider, _) {
-                // Scroll to bottom when messages change
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
-                      duration: const Duration(milliseconds: 100),
-                      curve: Curves.easeOut,
-                    );
-                  }
-                });
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _scrollToBottom());
 
-                if (chatProvider.messages.isEmpty) {
+                final msgs = chatProvider.messages;
+                final thinking = chatProvider.isThinking;
+
+                if (msgs.isEmpty && !thinking) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          widget.profile.emoji,
-                          style: const TextStyle(fontSize: 48),
-                        ),
+                        Text(widget.profile.emoji,
+                            style: const TextStyle(fontSize: 48)),
                         const SizedBox(height: 16),
                         Text(
                           'Start a conversation with\n${widget.profile.name}',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
-                            color: isDark ? Colors.white54 : Colors.black54,
+                            color:
+                                isDark ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ],
@@ -145,14 +149,55 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: chatProvider.messages.length,
+                  itemCount: msgs.length + (thinking ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final msg = chatProvider.messages[index];
-                    return ChatBubble(message: msg);
+                    if (thinking && index == msgs.length) {
+                      return ThinkingIndicator(
+                          emoji: widget.profile.emoji);
+                    }
+                    final msg = msgs[index];
+                    return ChatBubble(
+                      message: msg,
+                      isReplyTarget:
+                          chatProvider.replyTarget?.id == msg.id,
+                      onReply: () =>
+                          chatProvider.setReplyTarget(msg),
+                    );
                   },
                 );
               },
             ),
+          ),
+
+          // Reply banner
+          Consumer<ChatProvider>(
+            builder: (context, chatProvider, _) {
+              final target = chatProvider.replyTarget;
+              if (target == null) return const SizedBox.shrink();
+              return Container(
+                color: color.withValues(alpha: 0.1),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(Icons.reply, size: 16, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Replying to: ${target.content.length > 40 ? "${target.content.substring(0, 40)}..." : target.content}',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12, color: color),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => chatProvider.clearReplyTarget(),
+                      child: Icon(Icons.close, size: 16, color: color),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
 
           // Input bar
@@ -172,50 +217,77 @@ class _ChatScreenState extends State<ChatScreen> {
               top: 8,
               bottom: MediaQuery.of(context).padding.bottom + 8,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inputController,
-                    decoration: InputDecoration(
-                      hintText: 'Message ${widget.profile.name}...',
-                      hintStyle: TextStyle(
-                        color: isDark ? Colors.white38 : Colors.black38,
-                      ),
-                      filled: true,
-                      fillColor: isDark
-                          ? AppConstants.darkCard
-                          : Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+            child: Consumer<ChatProvider>(
+              builder: (context, chatProvider, _) {
+                final isThinking = chatProvider.isThinking;
+                return Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _inputController,
+                        enabled: !isThinking,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Message ${widget.profile.name}...',
+                          hintStyle: TextStyle(
+                            color: isDark
+                                ? Colors.white38
+                                : Colors.black38,
+                          ),
+                          filled: true,
+                          fillColor: isThinking
+                              ? (isDark
+                                  ? AppConstants.darkCard
+                                      .withValues(alpha: 0.5)
+                                  : Colors.grey[200])
+                              : (isDark
+                                  ? AppConstants.darkCard
+                                  : Colors.grey[100]),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                              const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white
+                              : Colors.black87,
+                        ),
+                        maxLines: 4,
+                        minLines: 1,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted:
+                            isThinking ? null : (_) => _sendMessage(),
                       ),
                     ),
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isThinking
+                            ? Colors.grey
+                            : color,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          isThinking
+                              ? Icons.hourglass_top
+                              : Icons.send_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed:
+                            isThinking ? null : _sendMessage,
+                      ),
                     ),
-                    maxLines: 4,
-                    minLines: 1,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ],

@@ -5,8 +5,9 @@ class AgentProfile {
   final String description;
   final String color;
   bool online;
-  String status;   // "working" | "free" | "idle"
+  String status;   // "working" | "free" | "idle" | "starting"
   int tasksQueue;
+  bool isPinned;
 
   AgentProfile({
     required this.id,
@@ -17,6 +18,7 @@ class AgentProfile {
     this.online = false,
     this.status = 'free',
     this.tasksQueue = 0,
+    this.isPinned = false,
   });
 
   factory AgentProfile.fromJson(Map<String, dynamic> json) {

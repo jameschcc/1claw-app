@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/agent_profile.dart';
 import '../services/websocket_service.dart';
 
 /// Manages the list of agent profiles and their online status.
-/// Reactively updates when WebSocket status messages arrive.
 class ProfilesProvider extends ChangeNotifier {
   final WebSocketService _wsService;
   List<AgentProfile> _profiles = [];
+  Set<String> _pinnedIds = {};
   String _activeProfileId = '';
 
   ProfilesProvider(this._wsService) {
+    _loadPins();
     _wsService.onConnectionChange = (connected) {
       if (connected) {
         _wsService.requestStatus();
@@ -22,13 +24,33 @@ class ProfilesProvider extends ChangeNotifier {
         final profiles = msg.profiles!
             .map((p) => AgentProfile.fromJson(p as Map<String, dynamic>))
             .toList();
+        // Preserve pin state
+        for (final p in profiles) {
+          p.isPinned = _pinnedIds.contains(p.id);
+        }
         _profiles = profiles;
         notifyListeners();
       }
     });
   }
 
-  List<AgentProfile> get profiles => List.unmodifiable(_profiles);
+  /// Profiles sorted: pinned first, then rest.
+  List<AgentProfile> get profiles {
+    final pinned = <AgentProfile>[];
+    final unpinned = <AgentProfile>[];
+    for (final p in _profiles) {
+      if (p.isPinned) {
+        pinned.add(p);
+      } else {
+        unpinned.add(p);
+      }
+    }
+    return [...pinned, ...unpinned];
+  }
+
+  List<AgentProfile> get pinnedProfiles =>
+      _profiles.where((p) => p.isPinned).toList();
+
   String get activeProfileId => _activeProfileId;
   AgentProfile? get activeProfile {
     try {
@@ -39,14 +61,39 @@ class ProfilesProvider extends ChangeNotifier {
   }
 
   bool get isConnected => _wsService.isConnected;
+  bool hasPinned() => _pinnedIds.isNotEmpty;
 
-  /// Set or update profiles from server data.
+  /// Toggle pin status for a profile.
+  void togglePin(String profileId) {
+    if (_pinnedIds.contains(profileId)) {
+      _pinnedIds.remove(profileId);
+    } else {
+      _pinnedIds.add(profileId);
+    }
+    for (final p in _profiles) {
+      if (p.id == profileId) {
+        p.isPinned = !p.isPinned;
+        break;
+      }
+    }
+    _savePins();
+    notifyListeners();
+  }
+
+  void setActiveProfile(String profileId) {
+    _activeProfileId = profileId;
+    _wsService.switchProfile(profileId);
+    notifyListeners();
+  }
+
   void updateProfiles(List<AgentProfile> profiles) {
+    for (final p in profiles) {
+      p.isPinned = _pinnedIds.contains(p.id);
+    }
     _profiles = profiles;
     notifyListeners();
   }
 
-  /// Update the online/offline status of a profile.
   void updateProfileStatus(String profileId, bool online) {
     for (final p in _profiles) {
       if (p.id == profileId) {
@@ -57,49 +104,31 @@ class ProfilesProvider extends ChangeNotifier {
     }
   }
 
-  /// Set the active profile (the one the user is chatting with).
-  void setActiveProfile(String profileId) {
-    _activeProfileId = profileId;
-    _wsService.switchProfile(profileId);
+  void loadDefaultProfiles() {
+    _profiles = [
+      AgentProfile(id: 'assistant', name: 'AI Assistant', emoji: '🤖',
+          description: 'General purpose assistant', color: '#0078D7'),
+      AgentProfile(id: 'writer', name: 'Creative Writer', emoji: '✍️',
+          description: 'Helps with writing and editing', color: '#7B1FA2'),
+      AgentProfile(id: 'coder', name: 'Code Expert', emoji: '💻',
+          description: 'Programming help', color: '#388E3C'),
+      AgentProfile(id: 'designer', name: 'Design Mentor', emoji: '🎨',
+          description: 'UI/UX design', color: '#F57C00'),
+    ];
+    for (final p in _profiles) {
+      p.isPinned = _pinnedIds.contains(p.id);
+    }
     notifyListeners();
   }
 
-  /// Load default profiles (fallback when server is unavailable).
-  void loadDefaultProfiles() {
-    _profiles = [
-      AgentProfile(
-        id: 'assistant',
-        name: 'AI Assistant',
-        emoji: '🤖',
-        description: 'General purpose assistant',
-        color: '#0078D7',
-        online: false,
-      ),
-      AgentProfile(
-        id: 'writer',
-        name: 'Creative Writer',
-        emoji: '✍️',
-        description: 'Helps with writing and editing',
-        color: '#7B1FA2',
-        online: false,
-      ),
-      AgentProfile(
-        id: 'coder',
-        name: 'Code Expert',
-        emoji: '💻',
-        description: 'Programming and technical help',
-        color: '#388E3C',
-        online: false,
-      ),
-      AgentProfile(
-        id: 'designer',
-        name: 'Design Mentor',
-        emoji: '🎨',
-        description: 'UI/UX design advice',
-        color: '#F57C00',
-        online: false,
-      ),
-    ];
+  Future<void> _loadPins() async {
+    final prefs = await SharedPreferences.getInstance();
+    _pinnedIds = (prefs.getStringList('pinned_profiles') ?? []).toSet();
     notifyListeners();
+  }
+
+  Future<void> _savePins() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('pinned_profiles', _pinnedIds.toList());
   }
 }
