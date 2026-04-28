@@ -19,9 +19,22 @@ String _avatarLetter(String name) {
   return name[0].toUpperCase();
 }
 
+/// Lighten a color by [amount] in HSL lightness space.
+Color _lighten(Color c, double amount) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0)).toColor();
+}
+
+/// Darken a color by [amount] in HSL lightness space.
+Color _darken(Color c, double amount) {
+  final hsl = HSLColor.fromColor(c);
+  return hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0)).toColor();
+}
+
 /// A user row in the left sidebar — ~60px height.
 /// Left: letter avatar (HSL color). Right: name (top) + last msg preview + unread badge.
-class UserListItem extends StatelessWidget {
+/// Hover effect: slight background color shift; selected state: profile color tint.
+class UserListItem extends StatefulWidget {
   final AgentProfile profile;
   final bool isSelected;
   final VoidCallback onTap;
@@ -34,183 +47,204 @@ class UserListItem extends StatelessWidget {
   });
 
   @override
+  State<UserListItem> createState() => _UserListItemState();
+}
+
+class _UserListItemState extends State<UserListItem> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = Color(profile.colorValue);
-    final avatarBg = _avatarColor(profile.name);
-    final avatarLetter = _avatarLetter(profile.name);
+    final color = Color(widget.profile.colorValue);
+    final avatarBg = _avatarColor(widget.profile.name);
+    final avatarLetter = _avatarLetter(widget.profile.name);
 
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: isSelected
-            ? color.withValues(alpha: 0.15)
-            : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? Colors.white10 : Colors.black12,
-            width: 0.5,
+    // Compute background: selected > hover > normal
+    Color bgColor;
+    if (widget.isSelected) {
+      bgColor = color.withValues(alpha: 0.15);
+    } else if (_isHovered) {
+      bgColor = isDark
+          ? Colors.white.withValues(alpha: 0.05)
+          : Colors.black.withValues(alpha: 0.04);
+    } else {
+      bgColor = Colors.transparent;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 60,
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? Colors.white10 : Colors.black12,
+              width: 0.5,
+            ),
           ),
         ),
-      ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              // Avatar with unread badge
-              Stack(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: avatarBg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        avatarLetter,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: avatarBg.computeLuminance() > 0.5
-                              ? Colors.black87
-                              : Colors.white,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                // Avatar with unread badge
+                Stack(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: avatarBg,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(
+                          avatarLetter,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: avatarBg.computeLuminance() > 0.5
+                                ? Colors.black87
+                                : Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Unread badge (red dot, top-right)
-                  Consumer<ChatProvider>(
-                    builder: (context, chatProvider, _) {
-                      final unread = chatProvider.unreadCount(profile.id);
-                      if (unread <= 0) return const SizedBox.shrink();
-                      return Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.red,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(width: 10),
-              // Name + last message
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Name row
-                    Row(
-                      children: [
-                        if (profile.isPinned)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: Icon(Icons.star,
-                                size: 11, color: Colors.amber),
-                          ),
-                        Flexible(
-                          child: Text(
-                            profile.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: profile.online
-                                ? AppConstants.onlineGreen
-                                : AppConstants.offlineGray,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    // Last message preview + unread count
+                    // Unread badge (red dot, top-right)
                     Consumer<ChatProvider>(
                       builder: (context, chatProvider, _) {
-                        final lastMsg = chatProvider
-                            .getLastMessageForProfile(profile.id);
-                        final unread = chatProvider.unreadCount(profile.id);
-                        final hasUnread = unread > 0;
-
-                        Widget preview;
-                        if (lastMsg.isEmpty) {
-                          preview = Text(
-                            profile.description,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white38 : Colors.black45,
+                        final unread = chatProvider.unreadCount(widget.profile.id);
+                        if (unread <= 0) return const SizedBox.shrink();
+                        return Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.red,
                             ),
-                          );
-                        } else {
-                          preview = Text(
-                            lastMsg,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight:
-                                  hasUnread ? FontWeight.w600 : FontWeight.normal,
-                              color: hasUnread
-                                  ? (isDark ? Colors.white : Colors.black87)
-                                  : (isDark ? Colors.white38 : Colors.black45),
-                            ),
-                          );
-                        }
-
-                        if (!hasUnread) return preview;
-
-                        return Row(
-                          children: [
-                            Expanded(child: preview),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                unread > 99 ? '99+' : '$unread',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         );
                       },
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                // Name + last message
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Name row
+                      Row(
+                        children: [
+                          if (widget.profile.isPinned)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.star,
+                                  size: 11, color: Colors.amber),
+                            ),
+                          Flexible(
+                            child: Text(
+                              widget.profile.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.profile.online
+                                  ? AppConstants.onlineGreen
+                                  : AppConstants.offlineGray,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      // Last message preview + unread count
+                      Consumer<ChatProvider>(
+                        builder: (context, chatProvider, _) {
+                          final lastMsg = chatProvider
+                              .getLastMessageForProfile(widget.profile.id);
+                          final unread = chatProvider.unreadCount(widget.profile.id);
+                          final hasUnread = unread > 0;
+
+                          Widget preview;
+                          if (lastMsg.isEmpty) {
+                            preview = Text(
+                              widget.profile.description,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white38 : Colors.black45,
+                              ),
+                            );
+                          } else {
+                            preview = Text(
+                              lastMsg,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight:
+                                    hasUnread ? FontWeight.w600 : FontWeight.normal,
+                                color: hasUnread
+                                    ? (isDark ? Colors.white : Colors.black87)
+                                    : (isDark ? Colors.white38 : Colors.black45),
+                              ),
+                            );
+                          }
+
+                          if (!hasUnread) return preview;
+
+                          return Row(
+                            children: [
+                              Expanded(child: preview),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  unread > 99 ? '99+' : '$unread',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

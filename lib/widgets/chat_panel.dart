@@ -58,6 +58,8 @@ class _ChatPanelState extends State<ChatPanel> {
 
   void _switchToProfile(String profileId) {
     context.read<ChatProvider>().switchProfile(profileId);
+    // Scroll to bottom immediately after switching profiles
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(force: true));
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
