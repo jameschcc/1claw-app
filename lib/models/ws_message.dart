@@ -6,6 +6,7 @@ class WsMessage {
   final String? timestamp;
   final String? message;
   final String? code;
+  final List<dynamic>? profiles;
 
   WsMessage({
     required this.type,
@@ -15,6 +16,7 @@ class WsMessage {
     this.timestamp,
     this.message,
     this.code,
+    this.profiles,
   });
 
   factory WsMessage.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class WsMessage {
       timestamp: json['timestamp'] as String?,
       message: json['message'] as String?,
       code: json['code'] as String?,
+      profiles: json['profiles'] as List<dynamic>?,
     );
   }
 

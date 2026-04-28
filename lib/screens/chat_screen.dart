@@ -240,7 +240,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.info_outline),
-              title: const Text('About ${widget.profile.name}'),
+              title: Text('About ${widget.profile.name}'),
               subtitle: Text(widget.profile.description),
               onTap: () => Navigator.pop(ctx),
             ),
