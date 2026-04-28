@@ -3,23 +3,46 @@ import 'package:flutter/services.dart';
 import '../config/constants.dart';
 import '../models/chat_message.dart';
 
+/// Compute HSL background color from first letter of name.
+Color _avatarColor(String name) {
+  final code = name.isNotEmpty ? name.codeUnitAt(0) : 65;
+  final upper = String.fromCharCode(code).toUpperCase().codeUnitAt(0);
+  final idx = (upper - 65).clamp(0, 25);
+  final hue = (idx / 26.0) * 255.0;
+  return HSLColor.fromAHSL(1.0, hue, 0.75, 0.75).toColor();
+}
+
+String _avatarLetter(String name) {
+  if (name.isEmpty) return '?';
+  return name[0].toUpperCase();
+}
+
 /// Chat message bubble with long-press context menu (Copy / Reply).
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isReplyTarget;
   final VoidCallback? onReply;
+  final String? profileName;
 
   const ChatBubble({
     super.key,
     required this.message,
     this.isReplyTarget = false,
     this.onReply,
+    this.profileName,
   });
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final name = profileName ?? message.profileId;
+    final color = _avatarColor(name);
+    final letter = _avatarLetter(name);
+    // choose contrasting text color
+    final textColor = color.computeLuminance() > 0.5
+        ? Colors.black87
+        : Colors.white;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -33,20 +56,16 @@ class ChatBubble extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: isDark ? AppConstants.darkCard : Colors.grey[200],
+                color: color,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
                 child: Text(
-                  message.profileId.isNotEmpty
-                      ? String.fromCharCode(
-                              message.profileId.codeUnitAt(0))
-                          .toUpperCase()
-                      : 'A',
+                  letter,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white70 : Colors.black54,
+                    color: textColor,
                   ),
                 ),
               ),

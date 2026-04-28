@@ -23,12 +23,13 @@ class _ChatPanelState extends State<ChatPanel> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
   bool _autoScroll = true;
+  bool _initialScrollDone = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().switchProfile(widget.profile.id);
+      _switchToProfile(widget.profile.id);
     });
     _scrollController.addListener(_onScroll);
     _inputFocus.onKeyEvent = _onKeyEvent;
@@ -38,8 +39,11 @@ class _ChatPanelState extends State<ChatPanel> {
   void didUpdateWidget(ChatPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.profile.id != widget.profile.id) {
+      _initialScrollDone = false;
+      _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<ChatProvider>().switchProfile(widget.profile.id);
+        _switchToProfile(widget.profile.id);
+        _inputFocus.requestFocus();
       });
     }
   }
@@ -50,6 +54,10 @@ class _ChatPanelState extends State<ChatPanel> {
     _scrollController.dispose();
     _inputFocus.dispose();
     super.dispose();
+  }
+
+  void _switchToProfile(String profileId) {
+    context.read<ChatProvider>().switchProfile(profileId);
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -71,8 +79,8 @@ class _ChatPanelState extends State<ChatPanel> {
     }
   }
 
-  void _scrollToBottom() {
-    if (_autoScroll && _scrollController.hasClients) {
+  void _scrollToBottom({bool force = false}) {
+    if ((_autoScroll || force) && _scrollController.hasClients) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 200),
@@ -160,8 +168,15 @@ class _ChatPanelState extends State<ChatPanel> {
         Expanded(
           child: Consumer<ChatProvider>(
             builder: (context, chatProvider, _) {
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) => _scrollToBottom());
+              // Force scroll to bottom once messages are loaded
+              if (chatProvider.isLoaded && !_initialScrollDone) {
+                _initialScrollDone = true;
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _scrollToBottom(force: true));
+              } else if (chatProvider.messages.isNotEmpty) {
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _scrollToBottom());
+              }
 
               final msgs = chatProvider.messages;
               final thinking = chatProvider.isThinking;
@@ -200,6 +215,7 @@ class _ChatPanelState extends State<ChatPanel> {
                   final msg = msgs[index];
                   return ChatBubble(
                     message: msg,
+                    profileName: profile.name,
                     isReplyTarget: chatProvider.replyTarget?.id == msg.id,
                     onReply: () => chatProvider.setReplyTarget(msg),
                   );

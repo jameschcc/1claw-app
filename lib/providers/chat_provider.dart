@@ -15,6 +15,7 @@ const String _cacheKey = 'chat_history_v1';
 class ChatProvider extends ChangeNotifier {
   final WebSocketService _wsService;
   final Map<String, List<ChatMessage>> _conversations = {};
+  final Map<String, int> _unreadCounts = {};
   String _currentProfileId = '';
   bool _isThinking = false;
   String _reasoningText = '';
@@ -34,9 +35,12 @@ class ChatProvider extends ChangeNotifier {
   ChatMessage? get replyTarget => _replyTarget;
   bool get isLoaded => _loaded;
 
+  int unreadCount(String profileId) => _unreadCounts[profileId] ?? 0;
+
   void switchProfile(String profileId) {
     _currentProfileId = profileId;
     _conversations.putIfAbsent(profileId, () => []);
+    _unreadCounts[profileId] = 0; // clear unread
     _isThinking = false;
     _reasoningText = '';
     _replyTarget = null;
@@ -93,6 +97,11 @@ class ChatProvider extends ChangeNotifier {
             role: 'agent',
           );
           _getConversationFor(msg.profileId!).add(agentMsg);
+          // Increment unread if not the currently viewed profile
+          if (msg.profileId != _currentProfileId) {
+            _unreadCounts[msg.profileId!] =
+                (_unreadCounts[msg.profileId!] ?? 0) + 1;
+          }
           _isThinking = false;
           _reasoningText = '';
           _saveHistory();

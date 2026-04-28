@@ -4,8 +4,23 @@ import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
 
+/// Compute HSL background color from first letter of name.
+/// hue = ((code - 65) / 26) * 255, saturation=0.75, lightness=0.75
+Color _avatarColor(String name) {
+  final code = name.isNotEmpty ? name.codeUnitAt(0) : 65; // default 'A'
+  final upper = String.fromCharCode(code).toUpperCase().codeUnitAt(0);
+  final idx = (upper - 65).clamp(0, 25);
+  final hue = (idx / 26.0) * 255.0;
+  return HSLColor.fromAHSL(1.0, hue, 0.75, 0.75).toColor();
+}
+
+String _avatarLetter(String name) {
+  if (name.isEmpty) return '?';
+  return name[0].toUpperCase();
+}
+
 /// A user row in the left sidebar — ~60px height.
-/// Left: emoji avatar (circle). Right: name (top) + last msg preview (bottom, 1 line).
+/// Left: letter avatar (HSL color). Right: name (top) + last msg preview + unread badge.
 class UserListItem extends StatelessWidget {
   final AgentProfile profile;
   final bool isSelected;
@@ -22,6 +37,8 @@ class UserListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = Color(profile.colorValue);
+    final avatarBg = _avatarColor(profile.name);
+    final avatarLetter = _avatarLetter(profile.name);
 
     return Container(
       height: 60,
@@ -36,28 +53,55 @@ class UserListItem extends StatelessWidget {
           ),
         ),
       ),
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
-              // Avatar
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? color.withValues(alpha: 0.3)
-                      : (isDark ? AppConstants.darkCard : Colors.grey[200]),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: Text(
-                    profile.emoji,
-                    style: const TextStyle(fontSize: 20),
+              // Avatar with unread badge
+              Stack(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: avatarBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        avatarLetter,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: avatarBg.computeLuminance() > 0.5
+                              ? Colors.black87
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  // Unread badge (red dot, top-right)
+                  Consumer<ChatProvider>(
+                    builder: (context, chatProvider, _) {
+                      final unread = chatProvider.unreadCount(profile.id);
+                      if (unread <= 0) return const SizedBox.shrink();
+                      return Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.red,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(width: 10),
               // Name + last message
@@ -69,6 +113,12 @@ class UserListItem extends StatelessWidget {
                     // Name row
                     Row(
                       children: [
+                        if (profile.isPinned)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Icon(Icons.star,
+                                size: 11, color: Colors.amber),
+                          ),
                         Flexible(
                           child: Text(
                             profile.name,
@@ -95,13 +145,17 @@ class UserListItem extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    // Last message preview
+                    // Last message preview + unread count
                     Consumer<ChatProvider>(
                       builder: (context, chatProvider, _) {
                         final lastMsg = chatProvider
                             .getLastMessageForProfile(profile.id);
+                        final unread = chatProvider.unreadCount(profile.id);
+                        final hasUnread = unread > 0;
+
+                        Widget preview;
                         if (lastMsg.isEmpty) {
-                          return Text(
+                          preview = Text(
                             profile.description,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -110,15 +164,45 @@ class UserListItem extends StatelessWidget {
                               color: isDark ? Colors.white38 : Colors.black45,
                             ),
                           );
+                        } else {
+                          preview = Text(
+                            lastMsg,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight:
+                                  hasUnread ? FontWeight.w600 : FontWeight.normal,
+                              color: hasUnread
+                                  ? (isDark ? Colors.white : Colors.black87)
+                                  : (isDark ? Colors.white38 : Colors.black45),
+                            ),
+                          );
                         }
-                        return Text(
-                          lastMsg,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white38 : Colors.black45,
-                          ),
+
+                        if (!hasUnread) return preview;
+
+                        return Row(
+                          children: [
+                            Expanded(child: preview),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                unread > 99 ? '99+' : '$unread',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
