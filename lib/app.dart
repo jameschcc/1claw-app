@@ -22,21 +22,7 @@ class _ClawAppState extends State<ClawApp> {
   void initState() {
     super.initState();
     _wsService = WebSocketService();
-
-    // Connect on startup
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _wsService.connect();
-
-      // Load default profiles if no server response
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) {
-          final profilesProvider = context.read<ProfilesProvider>();
-          if (profilesProvider.profiles.isEmpty) {
-            profilesProvider.loadDefaultProfiles();
-          }
-        }
-      });
-    });
+    _wsService.connect();
   }
 
   @override
@@ -56,14 +42,46 @@ class _ClawAppState extends State<ClawApp> {
           create: (_) => ChatProvider(_wsService),
         ),
       ],
-      child: MaterialApp(
-        title: '1Claw',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
-        themeMode: ThemeMode.dark,
-        home: const HomeScreen(),
+      child: _AppStartup(
+        child: MaterialApp(
+          title: '1Claw',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: ThemeMode.dark,
+          home: const HomeScreen(),
+        ),
       ),
     );
   }
+}
+
+/// Runs startup logic (connect, default profiles) from within the provider
+/// subtree so `context.read<ProfilesProvider>()` can find the provider.
+class _AppStartup extends StatefulWidget {
+  final Widget child;
+  const _AppStartup({required this.child});
+
+  @override
+  State<_AppStartup> createState() => _AppStartupState();
+}
+
+class _AppStartupState extends State<_AppStartup> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profilesProvider = context.read<ProfilesProvider>();
+
+      // Load default profiles if no server response after timeout
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && profilesProvider.profiles.isEmpty) {
+          profilesProvider.loadDefaultProfiles();
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
