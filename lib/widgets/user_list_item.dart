@@ -54,6 +54,7 @@ class UserListItem extends StatelessWidget {
         ),
       ),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
