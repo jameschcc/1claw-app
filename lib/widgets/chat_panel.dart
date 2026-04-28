@@ -9,6 +9,9 @@ import 'thinking_indicator.dart';
 
 /// Reusable chat panel — the core chat UI without Scaffold/AppBar.
 /// Used in the landscape sidebar layout or embedded in ChatScreen.
+///
+/// Uses [ListView.builder] with `reverse: true` so messages grow from the
+/// bottom naturally — no need for scrollToBottom hacks.
 class ChatPanel extends StatefulWidget {
   final AgentProfile profile;
 
@@ -58,8 +61,7 @@ class _ChatPanelState extends State<ChatPanel> {
 
   void _switchToProfile(String profileId) {
     context.read<ChatProvider>().switchProfile(profileId);
-    // Scroll to bottom immediately after switching profiles
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(force: true));
+    // reverse:true — ListView naturally starts at bottom, no scroll needed
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -75,16 +77,16 @@ class _ChatPanelState extends State<ChatPanel> {
 
   void _onScroll() {
     if (_scrollController.hasClients) {
-      final max = _scrollController.position.maxScrollExtent;
-      final current = _scrollController.position.pixels;
-      _autoScroll = (max - current) < 80;
+      // In reverse mode: pixels=0 is bottom (newest), maxScrollExtent is top
+      _autoScroll = _scrollController.position.pixels < 80;
     }
   }
 
+  /// Scroll to bottom (pixel 0 in reverse mode).
   void _scrollToBottom({bool force = false}) {
     if ((_autoScroll || force) && _scrollController.hasClients) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        0,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
@@ -174,18 +176,15 @@ class _ChatPanelState extends State<ChatPanel> {
           ),
         ),
 
-        // Messages + thinking
+        // Messages + thinking — reverse ListView grows from bottom
         Expanded(
           child: Consumer<ChatProvider>(
             builder: (context, chatProvider, _) {
-              // Force scroll to bottom once messages are loaded
+              // One-time scroll after history loads (belt & suspenders)
               if (chatProvider.isLoaded && !_initialScrollDone) {
                 _initialScrollDone = true;
                 WidgetsBinding.instance
                     .addPostFrameCallback((_) => _scrollToBottom(force: true));
-              } else if (chatProvider.messages.isNotEmpty) {
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _scrollToBottom());
               }
 
               final msgs = chatProvider.messages;
@@ -215,24 +214,31 @@ class _ChatPanelState extends State<ChatPanel> {
               }
 
               return ListView.builder(
+                reverse: true,
                 controller: _scrollController,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: msgs.length + ((thinking || hasReasoning) ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if ((thinking || hasReasoning) && index == msgs.length) {
+                  // In reverse mode, index 0 = bottom (most recent)
+                  // Thinking indicator is the newest item
+                  if ((thinking || hasReasoning) && index == 0) {
                     return ThinkingIndicator(
                       emoji: profile.emoji,
                       reasoning: chatProvider.reasoningText,
                       isActive: thinking,
                     );
                   }
-                  final msg = msgs[index];
+                  // Map ListView index to original msgs index (oldest → newest)
+                  final msgOffset = thinking ? index - 1 : index;
+                  final msgIndex = msgs.length - 1 - msgOffset;
+                  final msg = msgs[msgIndex];
+
                   // Show retry on user messages where agent didn't respond:
-                  // - last message and not thinking (agent finished but no reply)
+                  // - newest message and not thinking (agent finished but no reply)
                   // - next message is also user (agent skipped this one)
                   final needsRetry = msg.isUser && (
-                    (index == msgs.length - 1 && !thinking) ||
-                    (index < msgs.length - 1 && msgs[index + 1].isUser)
+                    (msgIndex == msgs.length - 1 && !thinking) ||
+                    (msgIndex < msgs.length - 1 && msgs[msgIndex + 1].isUser)
                   );
                   return ChatBubble(
                     message: msg,
