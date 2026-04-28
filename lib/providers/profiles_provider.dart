@@ -18,8 +18,12 @@ class ProfilesProvider extends ChangeNotifier {
     };
 
     _wsService.onMessage = (msg) {
-      if (msg.type == 'status') {
-        // Profiles data comes separately through status updates
+      if (msg.type == 'status' && msg.profiles != null) {
+        final profiles = msg.profiles!
+            .map((p) => AgentProfile.fromJson(p as Map<String, dynamic>))
+            .toList();
+        _profiles = profiles;
+        notifyListeners();
       }
     };
   }
