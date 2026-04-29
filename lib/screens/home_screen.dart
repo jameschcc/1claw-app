@@ -251,6 +251,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return Row(
             children: [
+              // ── Toolbar (60px) — darker gray, gear at bottom ──
+              Container(
+                width: 60,
+                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFD8D8D8),
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.gear,
+                          size: 20),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SettingsScreen()),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+
+              // ── Divider 1 ──
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
+
               // ── Left sidebar (240px) ──
               Container(
                 width: 240,
@@ -299,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                     ),
-                    // Bottom bar: connection + settings
+                    // Bottom bar: connection only (gear moved to toolbar)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
@@ -320,16 +348,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               isConnected: p.isConnected,
                             ),
                           ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(CupertinoIcons.gear,
-                                size: 20),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const SettingsScreen()),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -337,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // ── Vertical divider ──
+              // ── Divider 2 ──
               VerticalDivider(
                 width: 1,
                 thickness: 1,
