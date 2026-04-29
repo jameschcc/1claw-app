@@ -14,6 +14,11 @@ dependencies:
   provider: ^6.1.2
   http: ^1.2.2
   shared_preferences: ^2.3.3
+  system_fonts:
+    path: /home/j/Codes/minterm/lib/3rd-party/system_fonts
+  flutter_markdown: ^0.7.6
+  posh_flutter_components:
+    path: /home/j/Codes/posh_flutter_components
 
 dev_dependencies:
   flutter_test:

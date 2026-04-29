@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../config/constants.dart';
 import '../models/chat_message.dart';
 
@@ -157,14 +158,102 @@ class _ChatBubbleState extends State<ChatBubble> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Selectable text so users can copy portions
-                      SelectableText(
-                        widget.message.content,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isUser
-                              ? Colors.white
-                              : (isDark ? Colors.white : Colors.black87),
+                      // Markdown-rendered text with selection support
+                      MarkdownBody(
+                        data: widget.message.content,
+                        selectable: true,
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            fontSize: 14,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          code: TextStyle(
+                            fontSize: 13,
+                            backgroundColor: isUser
+                                ? Colors.white24
+                                : (isDark ? Colors.white12 : Colors.grey.shade200),
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.green.shade200 : Colors.red.shade800),
+                          ),
+                          codeblockDecoration: BoxDecoration(
+                            color: isUser
+                                ? Colors.white12
+                                : (isDark ? Colors.black26 : Colors.grey.shade100),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          h1: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          h2: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          h3: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          a: TextStyle(
+                            fontSize: 14,
+                            color: isUser
+                                ? Colors.white70
+                                : (isDark ? Colors.blue.shade200 : Colors.blue),
+                            decoration: TextDecoration.underline,
+                          ),
+                          blockquoteDecoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                width: 3,
+                                color: isUser
+                                    ? Colors.white38
+                                    : (isDark
+                                        ? Colors.white24
+                                        : Colors.grey.shade400),
+                              ),
+                            ),
+                          ),
+                          listBullet: TextStyle(
+                            fontSize: 14,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          strong: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          em: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: isUser
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                          horizontalRuleDecoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: isUser
+                                    ? Colors.white24
+                                    : (isDark
+                                        ? Colors.white12
+                                        : Colors.grey.shade300),
+                                width: 1,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
