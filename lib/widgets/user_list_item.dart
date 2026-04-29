@@ -75,8 +75,7 @@ class _UserListItemState extends State<UserListItem> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+      child: Container(
         height: 60,
         decoration: BoxDecoration(
           color: bgColor,

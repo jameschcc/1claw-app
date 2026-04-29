@@ -111,13 +111,23 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   void _sendMessage({String? prepend}) {
+    final chatProvider = context.read<ChatProvider>();
+    if (chatProvider.isThinking) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('正在等待回复，请稍等'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     var text = _inputController.text.trim();
     if (prepend != null && text.isNotEmpty) {
       text = '$prepend $text';
     }
     if (text.isEmpty) return;
-
-    final chatProvider = context.read<ChatProvider>();
     chatProvider.clearReplyTarget();
     chatProvider.sendMessage(text);
     _inputController.clear();
@@ -469,7 +479,6 @@ class _ChatPanelState extends State<ChatPanel> {
                     child: TextField(
                       controller: _inputController,
                       focusNode: _inputFocus,
-                      enabled: !isThinking,
                       decoration: InputDecoration(
                         hintText: 'Message ${profile.name}...',
                         hintStyle: TextStyle(
@@ -515,14 +524,14 @@ class _ChatPanelState extends State<ChatPanel> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: Icon(
-                          (isThinking && _hoveringStop)
-                              ? Icons.stop_rounded
-                              : (isThinking
-                                  ? Icons.hourglass_top
-                                  : Icons.send_rounded),
-                          color: Colors.white,
-                        ),
+                        icon: (isThinking && _hoveringStop)
+                            ? const Icon(Icons.stop_rounded, color: Colors.white)
+                            : isThinking
+                                ? const Icon(Icons.hourglass_top, color: Colors.white)
+                                : Transform.rotate(
+                                    angle: -0.7854, // -45 degrees
+                                    child: const Icon(Icons.send_rounded, color: Colors.white),
+                                  ),
                         onPressed: isThinking ? _confirmCancel : _sendMessage,
                       ),
                     ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'providers/chat_provider.dart';
 import 'providers/profiles_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/server_config_store.dart';
 import 'services/websocket_service.dart';
@@ -35,6 +36,7 @@ class _ClawAppState extends State<ClawApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(
           create: (_) => ProfilesProvider(_wsService),
         ),
@@ -44,13 +46,15 @@ class _ClawAppState extends State<ClawApp> {
       ],
       child: _AppStartup(
         wsService: _wsService,
-        child: MaterialApp(
-          title: '1Claw',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
-          themeMode: ThemeMode.dark,
-          home: const HomeScreen(),
+        child: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) => MaterialApp(
+            title: '1Claw',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            themeMode: themeProvider.themeMode,
+            home: const HomeScreen(),
+          ),
         ),
       ),
     );

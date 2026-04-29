@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../config/constants.dart';
 import '../providers/profiles_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/server_config_store.dart';
 
 /// Settings screen for server configuration and app preferences.
@@ -16,7 +17,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _wsUrlController;
   late TextEditingController _apiUrlController;
-  bool _isDark = true;
   bool _isSaving = false;
 
   @override
@@ -115,15 +115,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionHeader('Appearance'),
           const SizedBox(height: 8),
           Card(
-            child: SwitchListTile(
-              title: const Text('Dark Theme'),
-              subtitle: Text(isDark ? 'Dark mode enabled' : 'Light mode enabled'),
-              secondary: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-              value: isDark,
-              onChanged: (value) {
-                setState(() => _isDark = value);
-                // Theme switching would be handled via a ThemeProvider
-                // For now, we just update the state
+            child: Consumer<ThemeProvider>(
+              builder: (context, themeProvider, _) {
+                final dark = themeProvider.isDark;
+                return SwitchListTile(
+                  title: const Text('Dark Theme'),
+                  subtitle: Text(dark ? 'Dark mode enabled' : 'Light mode enabled'),
+                  secondary: Icon(dark ? Icons.dark_mode : Icons.light_mode),
+                  value: dark,
+                  onChanged: (value) => themeProvider.setDark(value),
+                );
               },
             ),
           ),
