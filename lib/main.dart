@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app.dart';
+import 'services/background_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize background foreground service (Android keep-alive)
+  await BackgroundService().initialize();
 
   // Allow all screen orientations (portrait + landscape)
   SystemChrome.setPreferredOrientations([

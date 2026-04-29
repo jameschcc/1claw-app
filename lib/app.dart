@@ -8,6 +8,7 @@ import 'providers/font_settings_provider.dart';
 import 'providers/profiles_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
+import 'services/background_service.dart';
 import 'services/server_config_store.dart';
 import 'services/websocket_service.dart';
 
@@ -32,6 +33,7 @@ class _ClawAppState extends State<ClawApp> {
   @override
   void dispose() {
     _wsService.dispose();
+    BackgroundService().stop();
     super.dispose();
   }
 
@@ -92,7 +94,16 @@ class _AppStartupState extends State<_AppStartup> {
       if (!mounted) return;
       if (connected) {
         widget.wsService.requestStatus();
+        // Start foreground keep-alive service
+        await BackgroundService().start();
       }
+
+      // Listen for connection state — restart foreground service on reconnect
+      widget.wsService.onConnectionChange = (isConnected) {
+        if (isConnected) {
+          BackgroundService().start();
+        }
+      };
 
       // Load default profiles if no server response after timeout
       _defaultProfilesTimer?.cancel();
