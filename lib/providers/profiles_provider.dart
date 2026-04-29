@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/agent_profile.dart';
+import '../models/ws_message.dart';
 import '../services/websocket_service.dart';
 
 /// Manages the list of agent profiles and their online status.
@@ -11,7 +12,7 @@ class ProfilesProvider extends ChangeNotifier {
   String _activeProfileId = '';
   bool _disposed = false;
   late final void Function(bool connected) _connectionListener;
-  late final void Function(dynamic msg) _messageListener;
+  late final void Function(WsMessage msg) _messageListener;
 
   ProfilesProvider(this._wsService) {
     _loadPins();
@@ -25,9 +26,7 @@ class ProfilesProvider extends ChangeNotifier {
 
     _messageListener = (msg) {
       if (msg.type == 'status' && msg.profiles != null) {
-        final profiles = msg.profiles!
-            .map((p) => AgentProfile.fromJson(p as Map<String, dynamic>))
-            .toList();
+        final profiles = _parseProfiles(msg.profiles!);
         // Preserve pin state
         for (final p in profiles) {
           p.isPinned = _pinnedIds.contains(p.id);
@@ -147,6 +146,24 @@ class ProfilesProvider extends ChangeNotifier {
   Future<void> _savePins() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pinned_profiles', _pinnedIds.toList());
+  }
+
+  List<AgentProfile> _parseProfiles(List<dynamic> rawProfiles) {
+    final parsed = <AgentProfile>[];
+    for (final raw in rawProfiles) {
+      if (raw is AgentProfile) {
+        parsed.add(raw);
+        continue;
+      }
+      if (raw is Map<String, dynamic>) {
+        parsed.add(AgentProfile.fromJson(raw));
+        continue;
+      }
+      if (raw is Map) {
+        parsed.add(AgentProfile.fromJson(Map<String, dynamic>.from(raw)));
+      }
+    }
+    return parsed;
   }
 
   void _notifySafely() {

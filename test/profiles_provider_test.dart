@@ -37,6 +37,40 @@ void main() {
         returnsNormally,
       );
     });
+
+    test('parses websocket status profiles from dynamic payloads', () async {
+      final wsService = _FakeWebSocketService();
+      final provider = ProfilesProvider(wsService);
+
+      wsService.emit(
+        WsMessage(
+          type: 'status',
+          profiles: [
+            {
+              'id': 'assistant',
+              'name': 'Assistant',
+              'emoji': '🤖',
+              'description': 'General assistant',
+              'color': '#0078D7',
+              'online': true,
+            },
+            {
+              'id': 'coder',
+              'name': 'Code Expert',
+              'emoji': '💻',
+              'description': 'Programming help',
+              'color': '#388E3C',
+              'online': false,
+            },
+          ],
+        ),
+      );
+
+      expect(provider.profiles, hasLength(2));
+      expect(provider.profiles.first.id, 'assistant');
+      expect(provider.profiles.first.online, isTrue);
+      expect(provider.profiles[1].id, 'coder');
+    });
   });
 }
 
