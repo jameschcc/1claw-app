@@ -256,7 +256,8 @@ class _ChatPanelState extends State<ChatPanel> {
                     );
                   }
                   // Map ListView index to original msgs index (oldest → newest)
-                  final msgOffset = thinking ? index - 1 : index;
+                  final hasThinkingItem = thinking || hasReasoning;
+                  final msgOffset = hasThinkingItem ? index - 1 : index;
                   final msgIndex = msgs.length - 1 - msgOffset;
                   final msg = msgs[msgIndex];
 

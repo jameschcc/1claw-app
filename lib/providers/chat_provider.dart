@@ -20,10 +20,10 @@ class ChatProvider extends ChangeNotifier {
   final Map<String, List<ChatMessage>> _conversations = {};
   final Map<String, int> _unreadCounts = {};
   final Map<String, String> _sessionIds = {};
+  final Map<String, bool> _thinkingStates = {};
+  final Map<String, String> _reasoningTexts = {};
+  final Map<String, String?> _activeMessageIds = {};
   String _currentProfileId = '';
-  bool _isThinking = false;
-  String _reasoningText = '';
-  String? _activeMessageId;
   ChatMessage? _replyTarget;
   bool _loaded = false;
 
@@ -34,11 +34,11 @@ class ChatProvider extends ChangeNotifier {
 
   List<ChatMessage> get messages => _conversations[_currentProfileId] ?? [];
   String get currentProfileId => _currentProfileId;
-  bool get isThinking => _isThinking;
-  String get reasoningText => _reasoningText;
+  bool get isThinking => _thinkingStates[_currentProfileId] ?? false;
+  String get reasoningText => _reasoningTexts[_currentProfileId] ?? '';
   ChatMessage? get replyTarget => _replyTarget;
   bool get isLoaded => _loaded;
-  String? get activeMessageId => _activeMessageId;
+  String? get activeMessageId => _activeMessageIds[_currentProfileId];
 
   int unreadCount(String profileId) => _unreadCounts[profileId] ?? 0;
   String sessionIdForProfile(String profileId) => _sessionIds[profileId] ?? '';
@@ -47,9 +47,6 @@ class ChatProvider extends ChangeNotifier {
     _currentProfileId = profileId;
     _conversations.putIfAbsent(profileId, () => []);
     _unreadCounts[profileId] = 0; // clear unread
-    _isThinking = false;
-    _reasoningText = '';
-    _activeMessageId = null;
     _replyTarget = null;
     notifyListeners();
   }
@@ -66,7 +63,7 @@ class ChatProvider extends ChangeNotifier {
         : _buildBootstrapHistory(conversation);
 
     _replyTarget = null;
-    _reasoningText = '';
+    _reasoningTexts[profileId] = '';
     final msgId = _generateId();
     final userMsg = ChatMessage(
       id: msgId,
@@ -76,8 +73,8 @@ class ChatProvider extends ChangeNotifier {
     );
 
     conversation.add(userMsg);
-    _isThinking = true;
-    _activeMessageId = msgId;
+    _thinkingStates[profileId] = false;
+    _activeMessageIds[profileId] = msgId;
     _saveHistory();
     notifyListeners();
 
@@ -91,11 +88,11 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void cancelActiveResponse() {
-    if (!_isThinking || _currentProfileId.isEmpty) return;
+    if (!isThinking || _currentProfileId.isEmpty) return;
 
     _wsService.cancelChat(
       _currentProfileId,
-      messageId: _activeMessageId,
+      messageId: activeMessageId,
       sessionId: sessionIdForProfile(_currentProfileId),
     );
   }
@@ -111,75 +108,80 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void _handleMessage(WsMessage msg) {
+    final profileId = msg.profileId;
+
     switch (msg.type) {
       case 'reasoning':
         // Intermediate reasoning text from the AI
-        if (msg.profileId != null && msg.sessionId != null) {
-          _sessionIds[msg.profileId!] = msg.sessionId!;
+        if (profileId != null && msg.sessionId != null) {
+          _sessionIds[profileId] = msg.sessionId!;
         }
-        if (msg.content != null && msg.profileId == _currentProfileId) {
+        if (profileId != null && msg.content != null) {
+          if (msg.id != null && msg.id!.isNotEmpty) {
+            _activeMessageIds[profileId] = msg.id;
+          }
           final nextReasoning = msg.content!.trim();
           if (nextReasoning.isEmpty) {
             break;
           }
 
-          if (_reasoningText.isEmpty ||
-              nextReasoning.startsWith(_reasoningText)) {
-            _reasoningText = nextReasoning;
-          } else if (!_reasoningText.contains(nextReasoning)) {
-            _reasoningText = '$_reasoningText\n$nextReasoning';
+          final currentReasoning = _reasoningTexts[profileId] ?? '';
+          if (currentReasoning.isEmpty ||
+              nextReasoning.startsWith(currentReasoning)) {
+            _reasoningTexts[profileId] = nextReasoning;
+          } else if (!currentReasoning.contains(nextReasoning)) {
+            _reasoningTexts[profileId] = '$currentReasoning\n$nextReasoning';
           }
-          _isThinking = true;
+          _thinkingStates[profileId] = true;
           notifyListeners();
         }
 
       case 'chat':
-        if (msg.content != null && msg.profileId != null) {
+        if (msg.content != null && profileId != null) {
           if (msg.sessionId != null && msg.sessionId!.isNotEmpty) {
-            _sessionIds[msg.profileId!] = msg.sessionId!;
+            _sessionIds[profileId] = msg.sessionId!;
           }
           final agentMsg = ChatMessage(
             id: msg.id ?? _generateId(),
-            profileId: msg.profileId!,
+            profileId: profileId,
             content: msg.content!,
             role: 'agent',
           );
-          _getConversationFor(msg.profileId!).add(agentMsg);
+          _getConversationFor(profileId).add(agentMsg);
           // Increment unread if not the currently viewed profile
-          if (msg.profileId != _currentProfileId) {
-            _unreadCounts[msg.profileId!] =
-                (_unreadCounts[msg.profileId!] ?? 0) + 1;
+          if (profileId != _currentProfileId) {
+            _unreadCounts[profileId] = (_unreadCounts[profileId] ?? 0) + 1;
           }
-          _isThinking = false;
-          _activeMessageId = null;
+          _thinkingStates[profileId] = false;
+          _activeMessageIds[profileId] = null;
           _saveHistory();
           notifyListeners();
         }
 
       case 'cancelled':
-        if (msg.profileId != null && msg.sessionId != null) {
-          _sessionIds[msg.profileId!] = msg.sessionId!;
+        if (profileId != null && msg.sessionId != null) {
+          _sessionIds[profileId] = msg.sessionId!;
         }
-        if (msg.profileId == _currentProfileId) {
-          _isThinking = false;
-          _reasoningText = '';
-          _activeMessageId = null;
+        if (profileId != null) {
+          _thinkingStates[profileId] = false;
+          _reasoningTexts[profileId] = '';
+          _activeMessageIds[profileId] = null;
           notifyListeners();
         }
 
       case 'error':
         debugPrint('[chat] Error: ${msg.code}: ${msg.message}');
-        if (msg.profileId != null) {
+        if (profileId != null) {
           final errorMsg = ChatMessage(
             id: _generateId(),
-            profileId: msg.profileId!,
+            profileId: profileId,
             content: '⚠️ Error: ${msg.message ?? "Unknown error"}',
             role: 'agent',
           );
-          _getConversationFor(msg.profileId!).add(errorMsg);
-          _isThinking = false;
-          _reasoningText = '';
-          _activeMessageId = null;
+          _getConversationFor(profileId).add(errorMsg);
+          _thinkingStates[profileId] = false;
+          _reasoningTexts[profileId] = '';
+          _activeMessageIds[profileId] = null;
           _saveHistory();
           notifyListeners();
         }
@@ -263,9 +265,9 @@ class ChatProvider extends ChangeNotifier {
   void clearConversation() {
     _conversations[_currentProfileId] = [];
     _sessionIds.remove(_currentProfileId);
-    _isThinking = false;
-    _reasoningText = '';
-    _activeMessageId = null;
+    _thinkingStates[_currentProfileId] = false;
+    _reasoningTexts[_currentProfileId] = '';
+    _activeMessageIds[_currentProfileId] = null;
     _replyTarget = null;
     _saveHistory();
     notifyListeners();
@@ -274,9 +276,9 @@ class ChatProvider extends ChangeNotifier {
   void clearAll() {
     _conversations.clear();
     _sessionIds.clear();
-    _isThinking = false;
-    _reasoningText = '';
-    _activeMessageId = null;
+    _thinkingStates.clear();
+    _reasoningTexts.clear();
+    _activeMessageIds.clear();
     _replyTarget = null;
     _saveHistory();
     notifyListeners();
