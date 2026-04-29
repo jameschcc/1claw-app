@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -235,7 +236,7 @@ class _ChatPanelState extends State<ChatPanel> {
       confirmText: '中止',
       cancelText: '继续等待',
       accentColor: Color(0xFFE81123), // Win11 red accent
-      icon: const Icon(Icons.stop_circle_outlined,
+      icon: const Icon(CupertinoIcons.clear_circled,
           size: 32, color: Color(0xFFE81123)),
     );
 
@@ -369,7 +370,9 @@ class _ChatPanelState extends State<ChatPanel> {
 
         // Messages + thinking — reverse ListView grows from bottom
         Expanded(
-          child: Consumer<ChatProvider>(
+          child: Container(
+            color: isDark ? AppConstants.darkBg : AppConstants.lightBg,
+            child: Consumer<ChatProvider>(
             builder: (context, chatProvider, _) {
               // One-time scroll after history loads (belt & suspenders)
               if (chatProvider.isLoaded && !_initialScrollDone) {
@@ -482,8 +485,8 @@ class _ChatPanelState extends State<ChatPanel> {
                       child: _buildOverlayActionButton(
                         isDark: isDark,
                         icon: isLoadingHistory
-                            ? Icons.sync_rounded
-                            : Icons.add_rounded,
+                            ? CupertinoIcons.refresh
+                            : CupertinoIcons.add,
                         onTap: isLoadingHistory
                             ? () {}
                             : () => _requestHistory(force: true),
@@ -497,7 +500,7 @@ class _ChatPanelState extends State<ChatPanel> {
                       bottom: 16,
                       child: _buildOverlayActionButton(
                         isDark: isDark,
-                        icon: Icons.vertical_align_bottom_rounded,
+                        icon: CupertinoIcons.chevron_down,
                         onTap: () => _scrollToBottom(force: true),
                         tooltip: 'Scroll to latest',
                       ),
@@ -505,8 +508,9 @@ class _ChatPanelState extends State<ChatPanel> {
                 ],
               );
             },
-          ),
-        ),
+            ), // ChatProvider consumer
+          ), // Container background
+        ), // Expanded
 
         // Reply banner
         Consumer<ChatProvider>(
@@ -518,7 +522,7 @@ class _ChatPanelState extends State<ChatPanel> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Row(
                 children: [
-                  Icon(Icons.reply, size: 16, color: color),
+                  Icon(CupertinoIcons.arrowshape_turn_up_left, size: 16, color: color),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -529,7 +533,7 @@ class _ChatPanelState extends State<ChatPanel> {
                   ),
                   GestureDetector(
                     onTap: () => chatProvider.clearReplyTarget(),
-                    child: Icon(Icons.close, size: 16, color: color),
+                    child: Icon(CupertinoIcons.clear, size: 16, color: color),
                   ),
                 ],
               ),
@@ -609,12 +613,12 @@ class _ChatPanelState extends State<ChatPanel> {
                       ),
                       child: IconButton(
                         icon: (isThinking && _hoveringStop)
-                            ? const Icon(Icons.stop_rounded, color: Colors.white)
+                            ? const Icon(CupertinoIcons.stop, color: Colors.white)
                             : isThinking
-                                ? const Icon(Icons.hourglass_top, color: Colors.white)
+                                ? const Icon(CupertinoIcons.time, color: Colors.white)
                                 : Transform.rotate(
                                     angle: -0.7854, // -45 degrees
-                                    child: const Icon(Icons.send_rounded, color: Colors.white),
+                                    child: const Icon(CupertinoIcons.paperplane, color: Colors.white),
                                   ),
                         onPressed: isThinking ? _confirmCancel : _sendMessage,
                       ),

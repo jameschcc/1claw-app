@@ -4,6 +4,7 @@ import 'constants.dart';
 class AppTheme {
   static ThemeData dark() {
     return ThemeData(
+      fontFamily: '', // system default font
       brightness: Brightness.dark,
       primaryColor: AppConstants.primaryBlue,
       scaffoldBackgroundColor: AppConstants.darkBg,
@@ -54,6 +55,7 @@ class AppTheme {
 
   static ThemeData light() {
     return ThemeData(
+      fontFamily: '', // system default font
       brightness: Brightness.light,
       primaryColor: AppConstants.primaryBlue,
       scaffoldBackgroundColor: AppConstants.lightBg,

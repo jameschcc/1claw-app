@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/constants.dart';
@@ -69,7 +70,7 @@ class AgentCard extends StatelessWidget {
                   if (profile.isPinned)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
-                      child: Icon(Icons.star, size: 12, color: Colors.amber),
+                      child: Icon(CupertinoIcons.star, size: 12, color: Colors.amber),
                     ),
                   // Emoji
                   Text(profile.emoji, style: const TextStyle(fontSize: 24)),
@@ -93,7 +94,7 @@ class AgentCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.circle, size: 6, color: statusColor),
+                      Icon(CupertinoIcons.circle_filled, size: 6, color: statusColor),
                       const SizedBox(width: 3),
                       Text(
                         statusLabel,
@@ -106,7 +107,7 @@ class AgentCard extends StatelessWidget {
                       ),
                       if (profile.online) ...[
                         const SizedBox(width: 8),
-                        Icon(Icons.list_alt, size: 10,
+                        Icon(CupertinoIcons.list_bullet, size: 10,
                             color: isActive ? Colors.white54 : Colors.grey),
                         const SizedBox(width: 2),
                         Text(
@@ -173,7 +174,7 @@ class AgentCard extends StatelessWidget {
               // Pin toggle
               ListTile(
                 leading: Icon(
-                  profile.isPinned ? Icons.star : Icons.star_border,
+                  profile.isPinned ? CupertinoIcons.star_fill : CupertinoIcons.star,
                   color: profile.isPinned ? Colors.amber : null,
                 ),
                 title: Text(profile.isPinned
@@ -192,7 +193,7 @@ class AgentCard extends StatelessWidget {
               const Divider(indent: 16, endIndent: 16),
               // Description (expandable)
               ExpansionTile(
-                leading: const Icon(Icons.info_outline),
+                leading: const Icon(CupertinoIcons.info),
                 title: const Text('Description'),
                 children: [
                   Padding(

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -61,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     decoration: const InputDecoration(
                       labelText: 'WebSocket URL',
                       hintText: 'ws://localhost:8080/ws',
-                      prefixIcon: Icon(Icons.link),
+                      prefixIcon: Icon(CupertinoIcons.link),
                       border: OutlineInputBorder(),
                     ),
                     style: TextStyle(
@@ -74,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     decoration: const InputDecoration(
                       labelText: 'API URL',
                       hintText: 'http://localhost:8080',
-                      prefixIcon: Icon(Icons.api),
+                      prefixIcon: Icon(CupertinoIcons.gear),
                       border: OutlineInputBorder(),
                     ),
                     style: TextStyle(
@@ -95,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(Icons.save),
+                          : const Icon(CupertinoIcons.cloud_download),
                       label: Text(_isSaving ? 'Saving...' : 'Save & Connect'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppConstants.primaryBlue,
@@ -121,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return SwitchListTile(
                   title: const Text('Dark Theme'),
                   subtitle: Text(dark ? 'Dark mode enabled' : 'Light mode enabled'),
-                  secondary: Icon(dark ? Icons.dark_mode : Icons.light_mode),
+                  secondary: Icon(dark ? CupertinoIcons.moon : CupertinoIcons.sun_max),
                   value: dark,
                   onChanged: (value) => themeProvider.setDark(value),
                 );

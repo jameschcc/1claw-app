@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -156,7 +157,7 @@ class _UserListItemState extends State<UserListItem> {
                           if (widget.profile.isPinned)
                             Padding(
                               padding: const EdgeInsets.only(right: 4),
-                              child: Icon(Icons.star,
+                              child: Icon(CupertinoIcons.star,
                                   size: 11, color: Colors.amber),
                             ),
                           Flexible(
@@ -281,7 +282,7 @@ class _UserListItemState extends State<UserListItem> {
               // Pin toggle
               ListTile(
                 leading: Icon(
-                  widget.profile.isPinned ? Icons.star : Icons.star_border,
+                  widget.profile.isPinned ? CupertinoIcons.star_fill : CupertinoIcons.star,
                   color: widget.profile.isPinned ? Colors.amber : null,
                 ),
                 title: Text(widget.profile.isPinned
@@ -300,7 +301,7 @@ class _UserListItemState extends State<UserListItem> {
               const Divider(indent: 16, endIndent: 16),
               // Description (expandable)
               ExpansionTile(
-                leading: const Icon(Icons.info_outline),
+                leading: const Icon(CupertinoIcons.info),
                 title: const Text('Description'),
                 children: [
                   Padding(

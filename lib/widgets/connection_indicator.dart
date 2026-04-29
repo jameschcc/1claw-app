@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../config/constants.dart';
 
@@ -61,7 +62,7 @@ class ConnectionIndicator extends StatelessWidget {
             GestureDetector(
               onTap: onRetry,
               child: const Icon(
-                Icons.refresh,
+                CupertinoIcons.refresh,
                 size: 16,
                 color: Colors.red,
               ),

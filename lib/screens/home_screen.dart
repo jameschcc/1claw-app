@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
@@ -46,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(CupertinoIcons.gear),
             onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SettingsScreen())),
@@ -77,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   isDark ? Colors.white70 : Colors.black87)),
                       if (provider.hasPinned()) ...[
                         const SizedBox(width: 8),
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const Icon(CupertinoIcons.star, size: 14, color: Colors.amber),
                         Text(
                           '${provider.pinnedProfiles.length}',
                           style: TextStyle(
@@ -191,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 240,
                 child: Column(
                   children: [
-                    // Sidebar header
+                    // Sidebar header (simplified — just the app title)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 10),
@@ -205,28 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Text('1Claw',
+                          Text('1Claw',
                               style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold)),
-                          const Spacer(),
-                          Consumer<ProfilesProvider>(
-                            builder: (_, p, _) => ConnectionIndicator(
-                              isConnected: p.isConnected,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(Icons.settings_outlined,
-                                size: 20),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const SettingsScreen()),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -247,6 +232,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                 provider.togglePin(profile.id),
                           );
                         },
+                      ),
+                    ),
+                    // Bottom bar: connection + settings
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color:
+                            isDark ? AppConstants.darkSurface : Colors.white,
+                        border: Border(
+                          top: BorderSide(
+                            color: isDark ? Colors.white12 : Colors.black12,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Consumer<ProfilesProvider>(
+                            builder: (_, p, _) => ConnectionIndicator(
+                              isConnected: p.isConnected,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.gear,
+                                size: 20),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen()),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -294,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            icon: const Icon(Icons.link),
+            icon: const Icon(CupertinoIcons.link),
             label: const Text('Configure Server'),
           ),
         ],

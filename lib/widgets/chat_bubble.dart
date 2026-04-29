@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/constants.dart';
@@ -69,7 +70,7 @@ class _ChatBubbleState extends State<ChatBubble> {
             : AppConstants.primaryBlue.withValues(alpha: 0.15))
         : isUser
             ? AppConstants.primaryBlue
-            : (isDark ? AppConstants.darkCard : Colors.grey[200]!);
+            : (isDark ? AppConstants.darkCard : Colors.white);
 
     // Slightly lighten on hover
     final bubbleColor =
@@ -98,7 +99,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.replay,
+                      CupertinoIcons.refresh,
                       size: 16,
                       color: Colors.orange.shade700,
                     ),
@@ -140,7 +141,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                 onExit: (_) => setState(() => _isHovered = false),
                 child: Container(
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    maxWidth: MediaQuery.of(context).size.width * 0.80,
                   ),
                   decoration: BoxDecoration(
                     color: bubbleColor,
@@ -215,7 +216,7 @@ class _ChatBubbleState extends State<ChatBubble> {
               const SizedBox(height: 8),
               if (widget.message.isUser && widget.onRetry != null)
                 ListTile(
-                  leading: const Icon(Icons.replay),
+                  leading: const Icon(CupertinoIcons.refresh),
                   title: const Text('Retry'),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -223,7 +224,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.copy),
+                leading: const Icon(CupertinoIcons.doc_on_doc),
                 title: const Text('Copy'),
                 onTap: () {
                   Clipboard.setData(
@@ -238,7 +239,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.reply),
+                leading: const Icon(CupertinoIcons.arrowshape_turn_up_left),
                 title: const Text('Reply'),
                 onTap: () {
                   Navigator.pop(ctx);
