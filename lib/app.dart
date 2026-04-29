@@ -4,6 +4,7 @@ import 'config/theme.dart';
 import 'providers/chat_provider.dart';
 import 'providers/profiles_provider.dart';
 import 'screens/home_screen.dart';
+import 'services/server_config_store.dart';
 import 'services/websocket_service.dart';
 
 /// Root 1Claw application widget.
@@ -22,7 +23,6 @@ class _ClawAppState extends State<ClawApp> {
   void initState() {
     super.initState();
     _wsService = WebSocketService();
-    _wsService.connect();
   }
 
   @override
@@ -43,6 +43,7 @@ class _ClawAppState extends State<ClawApp> {
         ),
       ],
       child: _AppStartup(
+        wsService: _wsService,
         child: MaterialApp(
           title: '1Claw',
           debugShowCheckedModeBanner: false,
@@ -59,8 +60,9 @@ class _ClawAppState extends State<ClawApp> {
 /// Runs startup logic (connect, default profiles) from within the provider
 /// subtree so `context.read<ProfilesProvider>()` can find the provider.
 class _AppStartup extends StatefulWidget {
+  final WebSocketService wsService;
   final Widget child;
-  const _AppStartup({required this.child});
+  const _AppStartup({required this.wsService, required this.child});
 
   @override
   State<_AppStartup> createState() => _AppStartupState();
@@ -70,8 +72,14 @@ class _AppStartupState extends State<_AppStartup> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final profilesProvider = context.read<ProfilesProvider>();
+      final config = await ServerConfigStore.load();
+
+      widget.wsService.setServerUrl(config.wsUrl);
+      await widget.wsService.connect();
+
+      if (!mounted) return;
 
       // Load default profiles if no server response after timeout
       Future.delayed(const Duration(seconds: 3), () {

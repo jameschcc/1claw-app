@@ -48,6 +48,12 @@ class WebSocketService {
     _serverUrl = url;
   }
 
+  Future<void> reconnect() async {
+    if (_disposed) return;
+    await disconnect();
+    await connect();
+  }
+
   /// Connect to the WebSocket server.
   Future<void> connect() async {
     if (_disposed || _connected || _isConnecting) return;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../config/constants.dart';
 import '../providers/profiles_provider.dart';
+import '../services/server_config_store.dart';
 
 /// Settings screen for server configuration and app preferences.
 class SettingsScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _wsUrlController;
   late TextEditingController _apiUrlController;
   bool _isDark = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -23,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         TextEditingController(text: AppConstants.defaultWsUrl);
     _apiUrlController =
         TextEditingController(text: AppConstants.defaultApiUrl);
+    _loadServerConfig();
   }
 
   @override
@@ -81,9 +85,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: _saveServerConfig,
-                      icon: const Icon(Icons.save),
-                      label: const Text('Save & Connect'),
+                      onPressed: _isSaving ? null : _saveServerConfig,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(_isSaving ? 'Saving...' : 'Save & Connect'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppConstants.primaryBlue,
                         foregroundColor: Colors.white,
@@ -204,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: provider.isConnected
                       ? null
                       : TextButton(
-                          onPressed: () => provider.loadDefaultProfiles(),
+                          onPressed: () => provider.reconnect(),
                           child: const Text('Reconnect'),
                         ),
                 );
@@ -231,7 +244,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _saveServerConfig() {
+  Future<void> _loadServerConfig() async {
+    final config = await ServerConfigStore.load();
+    if (!mounted) return;
+
+    _wsUrlController.text = config.wsUrl;
+    _apiUrlController.text = config.apiUrl;
+  }
+
+  Future<void> _saveServerConfig() async {
     final wsUrl = _wsUrlController.text.trim();
     final apiUrl = _apiUrlController.text.trim();
 
@@ -242,11 +263,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Settings saved'),
-        backgroundColor: AppConstants.onlineGreen,
-      ),
-    );
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final profilesProvider = context.read<ProfilesProvider>();
+      await ServerConfigStore.save(wsUrl: wsUrl, apiUrl: apiUrl);
+      await profilesProvider.updateServerUrl(wsUrl);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Settings saved'),
+          backgroundColor: AppConstants.onlineGreen,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save settings: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 }

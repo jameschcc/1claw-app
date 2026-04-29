@@ -61,7 +61,17 @@ class ProfilesProvider extends ChangeNotifier {
   }
 
   bool get isConnected => _wsService.isConnected;
+  String get serverUrl => _wsService.serverUrl;
   bool hasPinned() => _pinnedIds.isNotEmpty;
+
+  Future<void> reconnect() async {
+    await _wsService.reconnect();
+  }
+
+  Future<void> updateServerUrl(String url) async {
+    _wsService.setServerUrl(url);
+    await _wsService.reconnect();
+  }
 
   /// Toggle pin status for a profile.
   void togglePin(String profileId) {

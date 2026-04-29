@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.only(right: 8),
               child: ConnectionIndicator(
                 isConnected: provider.isConnected,
-                onRetry: () => provider.loadDefaultProfiles(),
+                onRetry: () => provider.reconnect(),
               ),
             ),
           ),
