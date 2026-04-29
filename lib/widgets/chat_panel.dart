@@ -38,21 +38,38 @@ class _ChatPanelState extends State<ChatPanel> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _switchToProfile(widget.profile.id);
+      _restoreDraft();
     });
     _scrollController.addListener(_onScroll);
     _inputFocus.onKeyEvent = _onKeyEvent;
+  }
+
+  void _restoreDraft() {
+    final draft = context.read<ChatProvider>().getDraft(widget.profile.id);
+    if (draft.isNotEmpty) {
+      _inputController.text = draft;
+      // Move cursor to end
+      _inputController.selection = TextSelection.fromPosition(
+        TextPosition(offset: draft.length),
+      );
+    }
   }
 
   @override
   void didUpdateWidget(ChatPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.profile.id != widget.profile.id) {
+      // Save draft for the old profile before switching
+      context
+          .read<ChatProvider>()
+          .saveDraft(oldWidget.profile.id, _inputController.text);
       _initialScrollDone = false;
       _autoScroll = true;
       _showScrollToBottom = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _switchToProfile(widget.profile.id);
+        _restoreDraft();
         _inputFocus.requestFocus();
       });
     }
@@ -60,10 +77,19 @@ class _ChatPanelState extends State<ChatPanel> {
 
   @override
   void dispose() {
+    _saveDraft();
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocus.dispose();
     super.dispose();
+  }
+
+  void _saveDraft() {
+    if (mounted && context.mounted) {
+      context
+          .read<ChatProvider>()
+          .saveDraft(widget.profile.id, _inputController.text);
+    }
   }
 
   void _switchToProfile(String profileId) {
@@ -130,6 +156,7 @@ class _ChatPanelState extends State<ChatPanel> {
     if (text.isEmpty) return;
     chatProvider.clearReplyTarget();
     chatProvider.sendMessage(text);
+    chatProvider.saveDraft(widget.profile.id, '');
     _inputController.clear();
     _autoScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());

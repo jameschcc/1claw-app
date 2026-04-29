@@ -26,6 +26,9 @@ class ChatProvider extends ChangeNotifier {
   final Map<String, String> _reasoningTexts = {};
   final Map<String, String?> _activeMessageIds = {};
 
+  /// Per-profile draft input text — preserved across layout switches.
+  final Map<String, String> _draftTexts = {};
+
   /// Maps server-provided msg IDs → local agent response IDs.
   /// Server reuses the user's message ID for agent responses (chat_chunk/chat),
   /// so we need our own IDs to avoid overwriting user messages with agent content.
@@ -53,6 +56,18 @@ class ChatProvider extends ChangeNotifier {
 
   int unreadCount(String profileId) => _unreadCounts[profileId] ?? 0;
   String sessionIdForProfile(String profileId) => _sessionIds[profileId] ?? '';
+
+  /// Save draft input text for a profile — survives widget rebuilds.
+  void saveDraft(String profileId, String text) {
+    if (text.trim().isEmpty) {
+      _draftTexts.remove(profileId);
+    } else {
+      _draftTexts[profileId] = text;
+    }
+  }
+
+  /// Get saved draft input text for a profile.
+  String getDraft(String profileId) => _draftTexts[profileId] ?? '';
 
   void switchProfile(String profileId) {
     _currentProfileId = profileId;

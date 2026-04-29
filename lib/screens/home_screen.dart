@@ -243,6 +243,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () {
                               provider.setActiveProfile(profile.id);
                             },
+                            onTogglePin: () =>
+                                provider.togglePin(profile.id),
                           );
                         },
                       ),

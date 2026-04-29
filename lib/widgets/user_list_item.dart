@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
@@ -34,16 +35,19 @@ Color _darken(Color c, double amount) {
 /// A user row in the left sidebar — ~60px height.
 /// Left: letter avatar (HSL color). Right: name (top) + last msg preview + unread badge.
 /// Hover effect: slight background color shift; selected state: profile color tint.
+/// Supports right-click context menu with pin/favorite toggle.
 class UserListItem extends StatefulWidget {
   final AgentProfile profile;
   final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback? onTogglePin;
 
   const UserListItem({
     super.key,
     required this.profile,
     required this.isSelected,
     required this.onTap,
+    this.onTogglePin,
   });
 
   @override
@@ -75,20 +79,22 @@ class _UserListItemState extends State<UserListItem> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: Container(
-        height: 60,
-        decoration: BoxDecoration(
-          color: bgColor,
-          border: Border(
-            bottom: BorderSide(
-              color: isDark ? Colors.white10 : Colors.black12,
-              width: 0.5,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onLongPress: () => _showContextMenu(context),
+        onSecondaryTap: () => _showContextMenu(context),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? Colors.white10 : Colors.black12,
+                width: 0.5,
+              ),
             ),
           ),
-        ),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          behavior: HitTestBehavior.opaque,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
@@ -245,6 +251,73 @@ class _UserListItemState extends State<UserListItem> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showContextMenu(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Pin toggle
+              ListTile(
+                leading: Icon(
+                  widget.profile.isPinned ? Icons.star : Icons.star_border,
+                  color: widget.profile.isPinned ? Colors.amber : null,
+                ),
+                title: Text(widget.profile.isPinned
+                    ? 'Unpin from favorites'
+                    : 'Pin as favorite'),
+                subtitle: Text(
+                  widget.profile.isPinned
+                      ? 'Remove from top row'
+                      : 'Show at top of list',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onTogglePin?.call();
+                },
+              ),
+              const Divider(indent: 16, endIndent: 16),
+              // Description (expandable)
+              ExpansionTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Description'),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Text(
+                      widget.profile.description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
