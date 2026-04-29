@@ -15,6 +15,7 @@ const int _bootstrapContentLimit = 500;
 
 /// Manages chat messages for the active profile.
 /// Persists history via SharedPreferences, auto-restores on init.
+/// Supports server-side conversation sync for cross-device usage.
 class ChatProvider extends ChangeNotifier {
   final WebSocketService _wsService;
   final Map<String, List<ChatMessage>> _conversations = {};
@@ -111,6 +112,17 @@ class ChatProvider extends ChangeNotifier {
     final profileId = msg.profileId;
 
     switch (msg.type) {
+      case 'conversation':
+        debugPrint('[chat] Server assigned conversation: ${msg.conversationId}');
+        break;
+
+      case 'history':
+        // Server sent conversation history — merge into local conversations
+        if (msg.messages != null && msg.messages!.isNotEmpty) {
+          _mergeServerHistory(msg.messages!);
+        }
+        break;
+
       case 'reasoning':
         // Intermediate reasoning text from the AI
         if (profileId != null && msg.sessionId != null) {
@@ -189,6 +201,37 @@ class ChatProvider extends ChangeNotifier {
       case 'status':
       case 'pong':
         break;
+    }
+  }
+
+  /// Merge server history into local conversations.
+  /// Prevents duplicates by checking message IDs, prefers server messages
+  /// over local (SharedPreferences) for consistency across devices.
+  void _mergeServerHistory(List<ChatMessage> serverMessages) {
+    bool changed = false;
+
+    for (final serverMsg in serverMessages) {
+      final pid = serverMsg.profileId;
+      final conv = _getConversationFor(pid);
+
+      // Skip if we already have this message by ID
+      if (conv.any((m) => m.id == serverMsg.id)) continue;
+
+      // Find insertion point by timestamp
+      int insertAt = conv.length;
+      for (int i = 0; i < conv.length; i++) {
+        if (conv[i].timestamp.isAfter(serverMsg.timestamp)) {
+          insertAt = i;
+          break;
+        }
+      }
+      conv.insert(insertAt, serverMsg);
+      changed = true;
+    }
+
+    if (changed) {
+      _saveHistory();
+      notifyListeners();
     }
   }
 

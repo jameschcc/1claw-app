@@ -1,3 +1,5 @@
+import '../models/chat_message.dart';
+
 class WsMessage {
   final String type;
   final String? profileId;
@@ -9,6 +11,8 @@ class WsMessage {
   final String? code;
   final List<dynamic>? profiles;
   final List<Map<String, String>>? history;
+  final List<ChatMessage>? messages;
+  final String? conversationId;
 
   WsMessage({
     required this.type,
@@ -21,9 +25,19 @@ class WsMessage {
     this.code,
     this.profiles,
     this.history,
+    this.messages,
+    this.conversationId,
   });
 
   factory WsMessage.fromJson(Map<String, dynamic> json) {
+    // Parse messages list if present
+    List<ChatMessage>? parsedMessages;
+    if (json['messages'] != null) {
+      parsedMessages = (json['messages'] as List)
+          .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+          .toList();
+    }
+
     return WsMessage(
       type: json['type'] as String? ?? '',
       profileId: json['profile_id'] as String?,
@@ -37,6 +51,8 @@ class WsMessage {
       history: (json['history'] as List<dynamic>?)
           ?.map((entry) => Map<String, String>.from(entry as Map))
           .toList(),
+      messages: parsedMessages,
+      conversationId: json['conversation_id'] as String?,
     );
   }
 

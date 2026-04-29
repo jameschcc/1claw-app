@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../models/ws_message.dart';
 
 /// WebSocket service that maintains a persistent connection to the 1Claw server.
 /// Handles auto-reconnect with exponential backoff and heartbeat ping/pong.
+/// Supports cross-device conversations via a persistent client_id.
 class WebSocketService {
   WebSocketChannel? _channel;
   StreamSubscription? _channelSubscription;
@@ -21,6 +23,12 @@ class WebSocketService {
   bool _disposed = false;
   int _reconnectAttempt = 0;
   static const int _maxReconnectDelay = 30; // seconds
+
+  /// Persistent client ID for cross-device conversation identification.
+  String? _clientId;
+
+  /// Conversation ID assigned by the server.
+  String? conversationId;
 
   /// Callback when connection state changes.
   void Function(bool connected)? onConnectionChange;
@@ -42,12 +50,28 @@ class WebSocketService {
 
   String get serverUrl => _serverUrl;
   bool get isConnected => _connected;
+  String? get clientId => _clientId;
 
   /// Update the server URL (takes effect on next connect).
   void setServerUrl(String url) {
     _serverUrl = url;
   }
 
+  /// Get or generate a persistent client ID from SharedPreferences.
+  Future<String> _ensureClientId() async {
+    if (_clientId != null) return _clientId!;
+    final prefs = await SharedPreferences.getInstance();
+    const key = '1claw_client_id';
+    var id = prefs.getString(key);
+    if (id == null || id.isEmpty) {
+      id = 'client_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
+      await prefs.setString(key, id);
+    }
+    _clientId = id;
+    return id;
+  }
+
+  /// Force a reconnect using the current server URL and client id.
   Future<void> reconnect() async {
     if (_disposed) return;
     await disconnect();
@@ -63,7 +87,14 @@ class WebSocketService {
     _isConnecting = true;
     await _closeChannel();
 
-    final uri = Uri.parse(_serverUrl);
+    final clientId = await _ensureClientId();
+    final baseUri = Uri.parse(_serverUrl);
+    final uri = baseUri.replace(
+      queryParameters: {
+        ...baseUri.queryParameters,
+        'client_id': clientId,
+      },
+    );
     final channel = WebSocketChannel.connect(uri);
     _channel = channel;
 
@@ -77,7 +108,7 @@ class WebSocketService {
       _setConnected(true);
       _isConnecting = false;
       _reconnectAttempt = 0;
-      debugPrint('[ws] Connected to $_serverUrl');
+      debugPrint('[ws] Connected as $clientId to $_serverUrl');
 
       // Listen for messages
       _channelSubscription = channel.stream.listen(
@@ -189,6 +220,12 @@ class WebSocketService {
     _send(WsMessage(type: 'get_status'));
   }
 
+  /// Request recent conversation history from the server.
+  void requestHistory() {
+    if (!_connected) return;
+    _send(WsMessage(type: 'get_history'));
+  }
+
   /// Send a raw JSON-serializable object.
   void _send(WsMessage msg) {
     try {
@@ -204,17 +241,20 @@ class WebSocketService {
         // Heartbeat response — no action needed
         break;
 
-      case 'status':
-        // The "status" message should include full profile data
-        // For now, we handle it as profile update
-        if (msg.profiles != null) {
-          // This won't be called directly since profiles is in a nested structure
-          // We handle it via onMessage
+      case 'conversation':
+        // Server assigned a conversation ID
+        if (msg.conversationId != null) {
+          conversationId = msg.conversationId;
+          debugPrint('[ws] Conversation: $conversationId');
         }
         break;
 
       case 'chat':
         // Forward chat response to the callbacks
+        break;
+
+      case 'history':
+        // Server sent conversation history — will be handled by listeners
         break;
 
       case 'error':
