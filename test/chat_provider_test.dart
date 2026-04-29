@@ -10,14 +10,14 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('enters thinking only after server reasoning event', () async {
+    test('tracks active thinking state for the pending response', () async {
       final wsService = _FakeWebSocketService();
       final provider = ChatProvider(wsService);
 
       provider.switchProfile('alpha');
       provider.sendMessage('Hello');
 
-      expect(provider.isThinking, isFalse);
+      expect(provider.isThinking, isTrue);
       expect(provider.reasoningText, isEmpty);
       expect(provider.activeMessageId, isNotNull);
       expect(wsService.lastSessionId, isNull);
@@ -139,6 +139,41 @@ void main() {
       expect(provider.messages.last.content, 'Done');
     });
 
+    test('joins incremental reasoning chunks inline instead of new lines', () async {
+      final wsService = _FakeWebSocketService();
+      final provider = ChatProvider(wsService);
+
+      provider.switchProfile('alpha');
+      provider.sendMessage('Hello');
+
+      wsService.emit(
+        WsMessage(
+          type: 'reasoning',
+          profileId: 'alpha',
+          id: 'srv-inline-1',
+          content: 'Thinking',
+        ),
+      );
+      wsService.emit(
+        WsMessage(
+          type: 'reasoning',
+          profileId: 'alpha',
+          id: 'srv-inline-1',
+          content: 'about',
+        ),
+      );
+      wsService.emit(
+        WsMessage(
+          type: 'reasoning',
+          profileId: 'alpha',
+          id: 'srv-inline-1',
+          content: 'this',
+        ),
+      );
+
+      expect(provider.reasoningText, 'Thinking about this');
+    });
+
     test('maps agent history entries to assistant for bootstrap context', () async {
       final wsService = _FakeWebSocketService();
       final provider = ChatProvider(wsService);
@@ -162,7 +197,7 @@ void main() {
       expect(wsService.lastHistory, isNotNull);
       expect(wsService.lastHistory, hasLength(2));
       _expectHistoryEntry(wsService.lastHistory![0], 'user', 'First question');
-      _expectHistoryEntry(wsService.lastHistory![1], 'assistant', 'First answer');
+      _expectHistoryEntry(wsService.lastHistory![1], 'agent', 'First answer');
     });
 
     test('reuses server-provided session id after provider restart', () async {
@@ -221,7 +256,7 @@ void main() {
       expect(wsService.lastHistory, isNotNull);
       expect(wsService.lastHistory, hasLength(2));
       _expectHistoryEntry(wsService.lastHistory![0], 'user', 'First question');
-      _expectHistoryEntry(wsService.lastHistory![1], 'assistant', 'First answer');
+      _expectHistoryEntry(wsService.lastHistory![1], 'agent', 'First answer');
     });
   });
 }

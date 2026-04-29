@@ -203,12 +203,10 @@ class ChatProvider extends ChangeNotifier {
           final nextReasoning = msg.content?.trim() ?? '';
           if (nextReasoning.isNotEmpty) {
             final currentReasoning = _reasoningTexts[profileId] ?? '';
-            if (currentReasoning.isEmpty ||
-                nextReasoning.startsWith(currentReasoning)) {
-              _reasoningTexts[profileId] = nextReasoning;
-            } else if (!currentReasoning.contains(nextReasoning)) {
-              _reasoningTexts[profileId] = '$currentReasoning\n$nextReasoning';
-            }
+            _reasoningTexts[profileId] = _mergeReasoningText(
+              currentReasoning,
+              nextReasoning,
+            );
           }
 
           _thinkingStates[profileId] = true;
@@ -442,6 +440,49 @@ class ChatProvider extends ChangeNotifier {
 
     _sessionIds[profileId] = normalized;
     return true;
+  }
+
+  String _mergeReasoningText(String current, String incoming) {
+    if (current.isEmpty) {
+      return incoming;
+    }
+    if (incoming.isEmpty || incoming == current) {
+      return current;
+    }
+    if (incoming.startsWith(current)) {
+      return incoming;
+    }
+    if (current.startsWith(incoming)) {
+      return current;
+    }
+
+    final overlap = _reasoningOverlapLength(current, incoming);
+    if (overlap > 1) {
+      return current + incoming.substring(overlap);
+    }
+
+    final currentLast = current.substring(current.length - 1);
+    final incomingFirst = incoming.substring(0, 1);
+    final needsSpace =
+        _isWordLike(currentLast) && _isWordLike(incomingFirst);
+    return needsSpace ? '$current $incoming' : '$current$incoming';
+  }
+
+  int _reasoningOverlapLength(String current, String incoming) {
+    final maxOverlap = current.length < incoming.length
+        ? current.length
+        : incoming.length;
+    for (var length = maxOverlap; length > 0; length--) {
+      if (current.substring(current.length - length) ==
+          incoming.substring(0, length)) {
+        return length;
+      }
+    }
+    return 0;
+  }
+
+  bool _isWordLike(String value) {
+    return RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(value);
   }
 
   List<Map<String, String>>? _buildBootstrapHistory(

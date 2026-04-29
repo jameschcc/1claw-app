@@ -24,6 +24,7 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
   static const _frames = ['  ', '. ', '..', '...'];
   int _frame = 0;
   Timer? _timer;
+  final ScrollController _reasoningScrollController = ScrollController();
 
   @override
   void initState() {
@@ -33,12 +34,34 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
         setState(() => _frame = (_frame + 1) % _frames.length);
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollReasoningToBottom());
+  }
+
+  @override
+  void didUpdateWidget(ThinkingIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reasoning != widget.reasoning ||
+        oldWidget.isActive != widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollReasoningToBottom(),
+      );
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _reasoningScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollReasoningToBottom() {
+    if (!mounted || !_reasoningScrollController.hasClients) {
+      return;
+    }
+
+    final position = _reasoningScrollController.position;
+    _reasoningScrollController.jumpTo(position.maxScrollExtent);
   }
 
   @override
@@ -79,98 +102,124 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
           ),
           const SizedBox(width: 8),
           Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              decoration: BoxDecoration(
-                color: isDark ? AppConstants.darkCard : Colors.grey[100],
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                  bottomLeft: Radius.circular(4),
-                  bottomRight: Radius.circular(16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
                 ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Thinking header
-                  Row(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppConstants.darkCard : Colors.grey[100],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                      bottomLeft: Radius.circular(4),
+                      bottomRight: Radius.circular(16),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? Colors.white54 : Colors.black54,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            statusLabel,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.white54 : Colors.black54,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _frames[_frame],
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _frames[_frame],
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : Colors.black54,
-                          letterSpacing: 1,
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75 - 28 - 8 - 28,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: (isDark ? Colors.white : Colors.black)
+                                .withValues(alpha: 0.06),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: SizedBox(
+                          height: reasoningHeight,
+                          child: ScrollConfiguration(
+                            behavior: const MaterialScrollBehavior().copyWith(
+                              scrollbars: false,
+                            ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return SingleChildScrollView(
+                                  controller: _reasoningScrollController,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: reasoningHeight,
+                                      minWidth: constraints.maxWidth,
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(
+                                          width: constraints.maxWidth,
+                                          child: ShaderMask(
+                                            blendMode: BlendMode.srcIn,
+                                            shaderCallback: (bounds) => gradient.createShader(
+                                              Rect.fromLTWH(
+                                                0,
+                                                0,
+                                                constraints.maxWidth,
+                                                bounds.height,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              reasoningText,
+                                              softWrap: true,
+                                              style: const TextStyle(
+                                                fontSize: reasoningFontSize,
+                                                fontStyle: FontStyle.italic,
+                                                height: reasoningLineHeight,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black)
-                          .withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: (isDark ? Colors.white : Colors.black)
-                            .withValues(alpha: 0.06),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    child: SizedBox(
-                      height: reasoningHeight,
-                      child: ScrollConfiguration(
-                        behavior: const MaterialScrollBehavior().copyWith(
-                          scrollbars: false,
-                        ),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              return ShaderMask(
-                                blendMode: BlendMode.srcIn,
-                                shaderCallback: (bounds) => gradient.createShader(
-                                  Rect.fromLTWH(
-                                    0,
-                                    0,
-                                    constraints.maxWidth,
-                                    bounds.height,
-                                  ),
-                                ),
-                                child: Text(
-                                  reasoningText,
-                                  style: const TextStyle(
-                                    fontSize: reasoningFontSize,
-                                    fontStyle: FontStyle.italic,
-                                    height: reasoningLineHeight,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
