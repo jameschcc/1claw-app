@@ -1,12 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
+import '../providers/chat_provider.dart';
 
 /// Compact metro-style card for each agent profile.
 /// Max 200px wide. Long-press/right-click for context menu with pin + info.
 /// [compact]=true renders a smaller tile suitable for the right column.
+/// Shows unread red dot + last message preview in portrait mode.
 class AgentCard extends StatelessWidget {
   final AgentProfile profile;
   final bool isActive;
@@ -96,7 +99,38 @@ class AgentCard extends StatelessWidget {
                           : (isDark ? Colors.white : Colors.black87),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  // Last message preview + unread
+                  Consumer<ChatProvider>(
+                    builder: (context, chatProvider, _) {
+                      final lastMsg = chatProvider
+                          .getLastMessageForProfile(profile.id);
+                      final unread = chatProvider.unreadCount(profile.id);
+                      final hasUnread = unread > 0;
+                      if (lastMsg.isEmpty && !hasUnread) {
+                        return const SizedBox(height: 2); // minimal spacer
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 2),
+                        child: Text(
+                          lastMsg.isNotEmpty ? lastMsg : '(new messages)',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight:
+                                hasUnread ? FontWeight.w600 : FontWeight.normal,
+                            color: hasUnread
+                                ? (isActive
+                                    ? Colors.white
+                                    : (isDark ? Colors.white : Colors.black87))
+                                : (isDark ? Colors.white38 : Colors.black45),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 2),
                   // Status + tasks
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -132,10 +166,10 @@ class AgentCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Online indicator (top-right)
+            // Online indicator (top-left corner)
             Positioned(
               top: 6,
-              right: 6,
+              left: 6,
               child: Container(
                 width: 8,
                 height: 8,
@@ -150,6 +184,40 @@ class AgentCard extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+            // Unread badge (top-right corner, red dot)
+            Consumer<ChatProvider>(
+              builder: (context, chatProvider, _) {
+                final unread = chatProvider.unreadCount(profile.id);
+                if (unread <= 0) return const SizedBox.shrink();
+                return Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    width: unread > 1 ? null : 12,
+                    height: unread > 1 ? null : 12,
+                    padding: unread > 1
+                        ? const EdgeInsets.symmetric(horizontal: 4, vertical: 1)
+                        : null,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: unread > 1 ? BoxShape.rectangle : BoxShape.circle,
+                      borderRadius:
+                          unread > 1 ? BorderRadius.circular(8) : null,
+                    ),
+                    child: unread > 1
+                        ? Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -177,48 +245,94 @@ class AgentCard extends StatelessWidget {
             width: isActive ? 1.5 : 0.5,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Emoji
-              Text(profile.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(height: 4),
-              // Name
-              Text(
-                profile.name,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: isActive
-                      ? Colors.white
-                      : (isDark ? Colors.white : Colors.black87),
-                ),
-              ),
-              const SizedBox(height: 2),
-              // Status dot only (no tasks in compact)
-              Row(
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.circle_filled, size: 5, color: statusColor),
-                  const SizedBox(width: 2),
+                  // Emoji
+                  Text(profile.emoji, style: const TextStyle(fontSize: 18)),
+                  const SizedBox(height: 4),
+                  // Name
                   Text(
-                    statusLabel,
+                    profile.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                       color: isActive
-                          ? Colors.white70
-                          : (isDark ? Colors.white54 : Colors.black54),
+                          ? Colors.white
+                          : (isDark ? Colors.white : Colors.black87),
                     ),
+                  ),
+                  // Last message preview (compact)
+                  Consumer<ChatProvider>(
+                    builder: (context, chatProvider, _) {
+                      final unread = chatProvider.unreadCount(profile.id);
+                      if (unread <= 0) return const SizedBox(height: 1);
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          chatProvider.getLastMessageForProfile(profile.id),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                            color: isActive
+                                ? Colors.white
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 2),
+                  // Status dot only (no tasks in compact)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(CupertinoIcons.circle_filled, size: 5, color: statusColor),
+                      const SizedBox(width: 2),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: isActive
+                              ? Colors.white70
+                              : (isDark ? Colors.white54 : Colors.black54),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            // Unread red dot (compact — top-right)
+            Consumer<ChatProvider>(
+              builder: (context, chatProvider, _) {
+                final unread = chatProvider.unreadCount(profile.id);
+                if (unread <= 0) return const SizedBox.shrink();
+                return Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.red,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

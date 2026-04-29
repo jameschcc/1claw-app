@@ -19,6 +19,16 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Clear unread count when entering chat in portrait mode
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ChatProvider>().switchProfile(widget.profile.id);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final color = Color(widget.profile.colorValue);
 
