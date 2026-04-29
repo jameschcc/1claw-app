@@ -40,6 +40,34 @@ class ChatProvider extends ChangeNotifier {
   /// Tracks the session id that was attached to the original outbound request.
   final Map<String, String?> _requestSessionIds = {};
 
+  /// Pending messages queued by "稍后发送" — auto-sent when agent finishes.
+  final List<String> _pendingQueue = [];
+
+  /// Whether there are pending messages waiting to be sent.
+  bool get hasPendingMessages => _pendingQueue.isNotEmpty;
+
+  /// Number of pending messages.
+  int get pendingCount => _pendingQueue.length;
+
+  /// Queue a message to be auto-sent when the current agent response finishes.
+  void enqueueMessage(String content) {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return;
+    _pendingQueue.add(trimmed);
+    notifyListeners();
+  }
+
+  /// Flush all pending messages — send them one by one.
+  void _flushPendingQueue() {
+    while (_pendingQueue.isNotEmpty) {
+      final content = _pendingQueue.removeAt(0);
+      // This triggers isThinking=true → each sendMessage will create its
+      // own agent response cycle, which will flush the next queued message.
+      sendMessage(content);
+    }
+    notifyListeners();
+  }
+
   Timer? _historyRequestTimeout;
   String _currentProfileId = '';
   ChatMessage? _replyTarget;
@@ -355,6 +383,11 @@ class ChatProvider extends ChangeNotifier {
           _activeMessageIds[profileId] = null;
           _saveHistory();
           notifyListeners();
+
+          // Auto-flush: send any queued messages now that agent is done
+          if (_pendingQueue.isNotEmpty && _thinkingStates[_currentProfileId] != true) {
+            _flushPendingQueue();
+          }
         }
         break;
 
@@ -517,6 +550,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void clearConversation() {
+    _pendingQueue.clear();
     _conversations[_currentProfileId] = [];
     _sessionIds.remove(_currentProfileId);
     _thinkingStates[_currentProfileId] = false;
@@ -530,6 +564,7 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void clearAll() {
+    _pendingQueue.clear();
     _conversations.clear();
     _sessionIds.clear();
     _thinkingStates.clear();

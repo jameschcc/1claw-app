@@ -39,7 +39,6 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
   bool _isNearTop = false;
-  bool _hoveringStop = false;
 
   // Input history for Up/Down arrow navigation
   final List<String> _inputHistory = [];
@@ -238,19 +237,39 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   Future<void> _confirmCancel() async {
-    final shouldCancel = await Win11Dialog.show(
+    final inputText = _inputController.text.trim();
+    final choice = await Win11Dialog.showThreeButton(
       context,
-      title: '中止回答？',
-      content: '当前 agent 正在回复。要立即中止这次回答吗？',
-      confirmText: '中止',
+      title: 'AI 正在回复中',
+      content: inputText.isNotEmpty
+          ? '当前 agent 正在回复。要将您输入的内容稍后发送吗？'
+          : '当前 agent 正在回复。要立即中止这次回答吗？',
+      confirmText: '中止回答',
       cancelText: '继续等待',
-      accentColor: Color(0xFFE81123), // Win11 red accent
+      thirdText: '稍后发送',
+      accentColor: const Color(0xFFE81123), // Win11 red accent
       icon: const Icon(CupertinoIcons.clear_circled,
           size: 32, color: Color(0xFFE81123)),
     );
 
-    if (!shouldCancel || !mounted) return;
-    context.read<ChatProvider>().cancelActiveResponse();
+    if (!mounted) return;
+    final chatProvider = context.read<ChatProvider>();
+
+    switch (choice) {
+      case 1: // 中止回答
+        chatProvider.cancelActiveResponse();
+        break;
+      case 2: // 稍后发送
+        if (inputText.isNotEmpty) {
+          chatProvider.enqueueMessage(_inputController.text);
+          chatProvider.saveDraft(widget.profile.id, '');
+          _inputController.clear();
+          showToast(context, '已加入发送队列（${chatProvider.pendingCount}条）');
+        }
+        chatProvider.cancelActiveResponse();
+        break;
+      // case 0 (继续等待): do nothing
+    }
   }
 
   Widget _buildOverlayActionButton({
@@ -597,32 +616,22 @@ class _ChatPanelState extends State<ChatPanel> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  MouseRegion(
-                    onEnter: (_) {
-                      if (isThinking) setState(() => _hoveringStop = true);
-                    },
-                    onExit: (_) {
-                      if (isThinking) setState(() => _hoveringStop = false);
-                    },
-                    child: Container(
+                  Container(
                       decoration: BoxDecoration(
-                        color: (isThinking && _hoveringStop)
+                        color: isThinking
                             ? const Color(0xFFE81123)
-                            : (isThinking ? Colors.grey : color),
+                            : color,
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
                         iconSize: 20,
-                        icon: (isThinking && _hoveringStop)
+                        icon: isThinking
                             ? const Icon(CupertinoIcons.stop, color: Colors.white)
-                            : isThinking
-                                ? const Icon(CupertinoIcons.time, color: Colors.white)
-                                : const Icon(CupertinoIcons.paperplane, color: Colors.white),
+                            : const Icon(CupertinoIcons.paperplane, color: Colors.white),
                         onPressed: isThinking ? _confirmCancel : _sendMessage,
                       ),
                     ),
-                  ),
-                ],
+                  ],
               );
             },
           ),
