@@ -8,6 +8,7 @@ import '../providers/profiles_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/server_config_store.dart';
 import '../widgets/font_picker_dialog.dart';
+import '../widgets/toast.dart';
 
 /// Settings screen for server configuration and app preferences.
 class SettingsScreen extends StatefulWidget {
@@ -285,9 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final apiUrl = _apiUrlController.text.trim();
 
     if (wsUrl.isEmpty || apiUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+      showToast(context, 'Please fill in all fields');
       return;
     }
 
@@ -304,29 +303,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
 
       if (connected) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Settings saved'),
-            backgroundColor: AppConstants.onlineGreen,
-          ),
-        );
+        showToast(context, 'Settings saved', duration: const Duration(seconds: 2));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Saved. Will retry connection ${Uri.parse(wsUrl).host}...'),
-            backgroundColor: Colors.orange.shade700,
-          ),
-        );
+        showToast(context, 'Saved. Will retry connection ${Uri.parse(wsUrl).host}...');
       }
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save settings: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showToast(context, 'Failed to save settings: $e');
     } finally {
       if (mounted) {
         setState(() {

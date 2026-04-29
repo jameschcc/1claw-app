@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
+import 'toast.dart';
 
 /// Compute HSL background color from first letter of name.
 /// hue = ((code - 65) / 26) * 255, saturation=0.75, lightness=0.75
@@ -311,13 +312,7 @@ class _UserListItemState extends State<UserListItem> {
           widget.onTogglePin?.call();
           break;
         case 'description':
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(widget.profile.description),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          showToast(context, widget.profile.description, duration: const Duration(seconds: 3));
           break;
       }
     });

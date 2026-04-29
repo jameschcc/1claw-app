@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../config/constants.dart';
 import '../models/chat_message.dart';
+import 'toast.dart';
 
 /// Compute HSL background color from first letter of name.
 Color _avatarColor(String name) {
@@ -379,12 +380,7 @@ class _ChatBubbleState extends State<ChatBubble> {
           break;
         case 'copy':
           Clipboard.setData(ClipboardData(text: widget.message.content));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Copied'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+          showToast(context, 'Copied');
           break;
         case 'reply':
           widget.onReply?.call();

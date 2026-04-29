@@ -9,6 +9,7 @@ import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
 import 'chat_bubble.dart';
 import 'thinking_indicator.dart';
+import 'toast.dart';
 import 'win11_dialog.dart';
 
 /// Reusable chat panel — the core chat UI without Scaffold/AppBar.
@@ -37,7 +38,7 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _autoScroll = true;
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
-  bool _isNearTop = false;
+  bool _isOverscrolling = false;
   bool _hoveringStop = false;
 
   // Input history for Up/Down arrow navigation
@@ -78,7 +79,7 @@ class _ChatPanelState extends State<ChatPanel> {
       _initialScrollDone = false;
       _autoScroll = true;
       _showScrollToBottom = false;
-      _isNearTop = false;
+      _isOverscrolling = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _switchToProfile(widget.profile.id);
@@ -180,11 +181,12 @@ class _ChatPanelState extends State<ChatPanel> {
           _showScrollToBottom = !nextAutoScroll;
         });
       }
-      // Detect when scrolled to top (near maxScrollExtent)
-      final nearTop = _scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 50;
-      if (nearTop != _isNearTop) {
-        setState(() => _isNearTop = nearTop);
+      // Detect overscroll past the top — only during active drag
+      // (pixels > maxScrollExtent means the user is pulling past the top)
+      final overscrolling = _scrollController.position.pixels >
+          _scrollController.position.maxScrollExtent;
+      if (overscrolling != _isOverscrolling) {
+        setState(() => _isOverscrolling = overscrolling);
       }
     }
   }
@@ -203,13 +205,7 @@ class _ChatPanelState extends State<ChatPanel> {
   void _sendMessage({String? prepend}) {
     final chatProvider = context.read<ChatProvider>();
     if (chatProvider.isThinking) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('正在等待回复，请稍等'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showToast(context, '正在等待回复，请稍等');
       return;
     }
 
@@ -495,7 +491,7 @@ class _ChatPanelState extends State<ChatPanel> {
                             ),
                     ),
                   ),
-                  if (widget.showHeader && _isNearTop)
+                  if (widget.showHeader && _isOverscrolling)
                     Positioned(
                       top: 12,
                       left: 0,
