@@ -147,6 +147,49 @@ class ChatProvider extends ChangeNotifier {
         }
         break;
 
+      case 'thinking':
+        // Agent received the message and started processing — show thinking indicator
+        if (profileId != null) {
+          if (msg.id != null && msg.id!.isNotEmpty) {
+            _activeMessageIds[profileId] = msg.id;
+          }
+          _thinkingStates[profileId] = true;
+          _reasoningTexts[profileId] = '';
+          notifyListeners();
+        }
+        break;
+
+      case 'chat_chunk':
+        // Streaming text chunk — update message in-place without clearing thinking
+        if (msg.content != null && profileId != null) {
+          _updateSessionId(profileId, msg.sessionId);
+          final conv = _getConversationFor(profileId);
+          final msgId = msg.id ?? '';
+          final existingIdx = msgId.isNotEmpty
+              ? conv.indexWhere((m) => m.id == msgId)
+              : -1;
+          if (existingIdx >= 0) {
+            // Update existing message content
+            conv[existingIdx] = ChatMessage(
+              id: conv[existingIdx].id,
+              profileId: profileId,
+              content: msg.content!,
+              role: 'agent',
+            );
+          } else {
+            // First chunk for this message — create new entry
+            conv.add(ChatMessage(
+              id: msg.id ?? _generateId(),
+              profileId: profileId,
+              content: msg.content!,
+              role: 'agent',
+            ));
+          }
+          // Keep thinking state — streaming is still in progress
+          notifyListeners();
+        }
+        break;
+
       case 'reasoning':
         // Intermediate reasoning text from the AI
         if (profileId != null) {
@@ -176,13 +219,28 @@ class ChatProvider extends ChangeNotifier {
       case 'chat':
         if (msg.content != null && profileId != null) {
           _updateSessionId(profileId, msg.sessionId);
-          final agentMsg = ChatMessage(
-            id: msg.id ?? _generateId(),
-            profileId: profileId,
-            content: msg.content!,
-            role: 'agent',
-          );
-          _getConversationFor(profileId).add(agentMsg);
+          final conv = _getConversationFor(profileId);
+          final msgId = msg.id ?? '';
+          final existingIdx = msgId.isNotEmpty
+              ? conv.indexWhere((m) => m.id == msgId)
+              : -1;
+          if (existingIdx >= 0) {
+            // Update existing message (e.g. final response after streaming)
+            conv[existingIdx] = ChatMessage(
+              id: conv[existingIdx].id,
+              profileId: profileId,
+              content: msg.content!,
+              role: 'agent',
+            );
+          } else {
+            // Batch response (no prior streaming) — add new
+            conv.add(ChatMessage(
+              id: msg.id ?? _generateId(),
+              profileId: profileId,
+              content: msg.content!,
+              role: 'agent',
+            ));
+          }
           // Increment unread if not the currently viewed profile
           if (profileId != _currentProfileId) {
             _unreadCounts[profileId] = (_unreadCounts[profileId] ?? 0) + 1;
