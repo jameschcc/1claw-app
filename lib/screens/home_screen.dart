@@ -295,16 +295,33 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Column(
                   children: [
                     const Spacer(),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.gear,
-                          size: 20),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsScreen()),
+                    // Refresh button — triggers server profile reload
+                    Consumer<ProfilesProvider>(
+                      builder: (_, p, _) => Opacity(
+                        opacity: 0.9,
+                        child: IconButton(
+                          icon: const Icon(CupertinoIcons.refresh,
+                              size: 24),
+                          tooltip: 'Refresh profiles from server',
+                          onPressed:
+                              p.isConnected ? () => p.requestStatus() : null,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+                    Opacity(
+                      opacity: 0.9,
+                      child: IconButton(
+                        icon: const Icon(CupertinoIcons.gear,
+                            size: 24),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SettingsScreen()),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -365,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen>
                     // Bottom bar: connection only (gear moved to toolbar)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color:
                             isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),

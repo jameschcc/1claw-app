@@ -79,6 +79,12 @@ class ProfilesProvider extends ChangeNotifier {
     await _wsService.reconnect();
   }
 
+  /// Request the server to re-send full profile status.
+  /// Used by the refresh button so front-end picks up profile add/delete.
+  void requestStatus() {
+    _wsService.requestStatus();
+  }
+
   /// Update server URL and reconnect. Returns true if connected successfully.
   Future<bool> updateServerUrl(String url) async {
     _wsService.setServerUrl(url);
