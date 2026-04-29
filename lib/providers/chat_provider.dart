@@ -94,7 +94,8 @@ class ChatProvider extends ChangeNotifier {
     );
 
     conversation.add(userMsg);
-    _thinkingStates[profileId] = false;
+    _thinkingStates[profileId] = true;
+    _reasoningTexts[profileId] = '';
     _activeMessageIds[profileId] = msgId;
     _saveHistory();
     notifyListeners();
