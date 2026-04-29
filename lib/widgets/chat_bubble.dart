@@ -69,7 +69,7 @@ class _ChatBubbleState extends State<ChatBubble> {
             : AppConstants.primaryBlue.withValues(alpha: 0.15))
         : isUser
             ? AppConstants.primaryBlue
-            : (isDark ? AppConstants.darkCard : Colors.grey[100]!);
+            : (isDark ? AppConstants.darkCard : Colors.grey[200]!);
 
     // Slightly lighten on hover
     final bubbleColor =
