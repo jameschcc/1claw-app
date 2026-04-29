@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/constants.dart';
+import '../providers/font_settings_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/server_config_store.dart';
+import '../widgets/font_picker_dialog.dart';
 
 /// Settings screen for server configuration and app preferences.
 class SettingsScreen extends StatefulWidget {
@@ -125,6 +127,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   secondary: Icon(dark ? CupertinoIcons.moon : CupertinoIcons.sun_max),
                   value: dark,
                   onChanged: (value) => themeProvider.setDark(value),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<FontSettingsProvider>(
+              builder: (context, fontProvider, _) {
+                return ListTile(
+                  leading: const Icon(CupertinoIcons.textformat),
+                  title: const Text('UI Font'),
+                  subtitle: Text(fontProvider.uiFont),
+                  trailing: const Icon(CupertinoIcons.chevron_right),
+                  onTap: () async {
+                    final selected = await showDialog<String>(
+                      context: context,
+                      builder: (_) => FontPickerDialog(
+                        currentFont: fontProvider.uiFont,
+                      ),
+                    );
+                    if (selected != null && context.mounted) {
+                      context.read<FontSettingsProvider>().setUIFont(selected);
+                    }
+                  },
                 );
               },
             ),

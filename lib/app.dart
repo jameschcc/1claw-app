@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'providers/chat_provider.dart';
+import 'providers/font_settings_provider.dart';
 import 'providers/profiles_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
@@ -39,6 +40,7 @@ class _ClawAppState extends State<ClawApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => FontSettingsProvider()),
         ChangeNotifierProvider(
           create: (_) => ProfilesProvider(_wsService),
         ),
@@ -48,12 +50,12 @@ class _ClawAppState extends State<ClawApp> {
       ],
       child: _AppStartup(
         wsService: _wsService,
-        child: Consumer<ThemeProvider>(
-          builder: (context, themeProvider, _) => MaterialApp(
+        child: Consumer2<ThemeProvider, FontSettingsProvider>(
+          builder: (context, themeProvider, fontProvider, _) => MaterialApp(
             title: '1Claw',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
+            theme: AppTheme.light(fontFamily: fontProvider.uiFont == 'System' ? '' : fontProvider.uiFont),
+            darkTheme: AppTheme.dark(fontFamily: fontProvider.uiFont == 'System' ? '' : fontProvider.uiFont),
             themeMode: themeProvider.themeMode,
             home: const HomeScreen(),
           ),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'constants.dart';
 
 class AppTheme {
-  static ThemeData dark() {
+  static ThemeData dark({String fontFamily = ''}) {
     return ThemeData(
-      fontFamily: '', // system default font
+      fontFamily: fontFamily,
       brightness: Brightness.dark,
       primaryColor: AppConstants.primaryBlue,
       scaffoldBackgroundColor: AppConstants.darkBg,
@@ -53,9 +53,9 @@ class AppTheme {
     );
   }
 
-  static ThemeData light() {
+  static ThemeData light({String fontFamily = ''}) {
     return ThemeData(
-      fontFamily: '', // system default font
+      fontFamily: fontFamily,
       brightness: Brightness.light,
       primaryColor: AppConstants.primaryBlue,
       scaffoldBackgroundColor: AppConstants.lightBg,

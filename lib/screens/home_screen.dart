@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../config/constants.dart';
 import '../providers/profiles_provider.dart';
 import '../widgets/agent_card.dart';
 import '../widgets/connection_indicator.dart';
@@ -188,8 +187,9 @@ class _HomeScreenState extends State<HomeScreen> {
           return Row(
             children: [
               // ── Left sidebar (240px) ──
-              SizedBox(
+              Container(
                 width: 240,
+                color: isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
                 child: Column(
                   children: [
                     // Sidebar header (simplified — just the app title)
@@ -198,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color:
-                            isDark ? AppConstants.darkSurface : Colors.white,
+                            isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
                         border: Border(
                           bottom: BorderSide(
                             color: isDark ? Colors.white12 : Colors.black12,
@@ -240,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color:
-                            isDark ? AppConstants.darkSurface : Colors.white,
+                            isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
                         border: Border(
                           top: BorderSide(
                             color: isDark ? Colors.white12 : Colors.black12,
