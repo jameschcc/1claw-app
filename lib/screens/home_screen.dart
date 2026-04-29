@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
+import '../models/agent_profile.dart';
 import '../providers/profiles_provider.dart';
 import '../widgets/agent_card.dart';
 import '../widgets/connection_indicator.dart';
@@ -192,62 +193,9 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                 ),
-                // Grid
+                // Profiles area
                 Expanded(
-                  child: GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 200,
-                      childAspectRatio: 0.9,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: provider.profiles.length,
-                    itemBuilder: (context, index) {
-                      final profile = provider.profiles[index];
-                      final isPinned =
-                          index < provider.pinnedProfiles.length;
-                      return Column(
-                        children: [
-                          if (isPinned &&
-                              index ==
-                                  provider.pinnedProfiles.length - 1)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                children: List.filled(
-                                    3,
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.amber
-                                            .withValues(alpha: 0.3),
-                                        thickness: 0.5,
-                                      ),
-                                    )),
-                              ),
-                            ),
-                          Expanded(
-                            child: AgentCard(
-                              profile: profile,
-                              isActive: profile.id ==
-                                  provider.activeProfileId,
-                              onTap: () {
-                                provider.setActiveProfile(profile.id);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => ChatScreen(
-                                          profile: profile)),
-                                );
-                              },
-                              onTogglePin: () =>
-                                  provider.togglePin(profile.id),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                  child: _buildProfilesArea(provider, isDark),
                 ),
               ],
             ),
@@ -420,6 +368,116 @@ class _HomeScreenState extends State<HomeScreen>
           );
         },
       ),
+    );
+  }
+
+  // ─── Portrait profile area: two-column or single group ────────
+
+  Widget _buildProfilesArea(ProfilesProvider provider, bool isDark) {
+    final pinned = provider.pinnedProfiles;
+    final unpinned = provider.profiles.where((p) => !p.isPinned).toList();
+    final hasBoth = pinned.isNotEmpty && unpinned.isNotEmpty;
+
+    return hasBoth
+        ? _buildTwoColumns(pinned, unpinned, provider, isDark)
+        : _buildSingleGroup(provider, isDark);
+  }
+
+  /// Two-column layout: left = favorites (larger), right = others (smaller tiles).
+  Widget _buildTwoColumns(
+    List<AgentProfile> pinned,
+    List<AgentProfile> unpinned,
+    ProfilesProvider provider,
+    bool isDark,
+  ) {
+    Widget _card(AgentProfile profile, {bool compact = false}) => AgentCard(
+          profile: profile,
+          isActive: profile.id == provider.activeProfileId,
+          onTap: () {
+            provider.setActiveProfile(profile.id);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChatScreen(profile: profile)),
+            );
+          },
+          onTogglePin: () => provider.togglePin(profile.id),
+          compact: compact,
+        );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Left: favorites (larger, flex: 3)
+        Expanded(
+          flex: 3,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final profile in pinned)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: _card(profile),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Divider between columns
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: isDark ? Colors.white12 : Colors.black12,
+        ),
+        // Right: non-favorites (smaller tiles, flex: 2)
+        Expanded(
+          flex: 2,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final profile in unpinned)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: _card(profile, compact: true),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Single group: standard grid when all profiles are the same type.
+  Widget _buildSingleGroup(ProfilesProvider provider, bool isDark) {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
+        childAspectRatio: 0.9,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: provider.profiles.length,
+      itemBuilder: (context, index) {
+        final profile = provider.profiles[index];
+        return AgentCard(
+          profile: profile,
+          isActive: profile.id == provider.activeProfileId,
+          onTap: () {
+            provider.setActiveProfile(profile.id);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChatScreen(profile: profile)),
+            );
+          },
+          onTogglePin: () => provider.togglePin(profile.id),
+        );
+      },
     );
   }
 

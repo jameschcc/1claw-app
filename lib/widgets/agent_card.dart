@@ -6,11 +6,13 @@ import '../models/agent_profile.dart';
 
 /// Compact metro-style card for each agent profile.
 /// Max 200px wide. Long-press/right-click for context menu with pin + info.
+/// [compact]=true renders a smaller tile suitable for the right column.
 class AgentCard extends StatelessWidget {
   final AgentProfile profile;
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback? onTogglePin;
+  final bool compact;
 
   const AgentCard({
     super.key,
@@ -18,6 +20,7 @@ class AgentCard extends StatelessWidget {
     required this.isActive,
     required this.onTap,
     this.onTogglePin,
+    this.compact = false,
   });
 
   @override
@@ -34,6 +37,10 @@ class AgentCard extends StatelessWidget {
         : profile.status == 'starting'
             ? 'Starting...'
             : 'Free';
+
+    if (compact) {
+      return _buildCompact(context, color, isDark, statusColor, statusLabel);
+    }
 
     return GestureDetector(
       onTap: profile.online ? onTap : null,
@@ -145,6 +152,73 @@ class AgentCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompact(BuildContext context, Color color, bool isDark,
+      Color statusColor, String statusLabel) {
+    return GestureDetector(
+      onTap: profile.online ? onTap : null,
+      onLongPress: () => _showContextMenu(context),
+      onSecondaryTap: () => _showContextMenu(context),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 140, minWidth: 80),
+        decoration: BoxDecoration(
+          color: isActive
+              ? color.withValues(alpha: 0.7)
+              : (isDark ? AppConstants.darkCard : AppConstants.lightCard),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? Colors.white.withValues(alpha: 0.2)
+                : (isDark ? Colors.white12 : Colors.black12),
+            width: isActive ? 1.5 : 0.5,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Emoji
+              Text(profile.emoji, style: const TextStyle(fontSize: 18)),
+              const SizedBox(height: 4),
+              // Name
+              Text(
+                profile.name,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isActive
+                      ? Colors.white
+                      : (isDark ? Colors.white : Colors.black87),
+                ),
+              ),
+              const SizedBox(height: 2),
+              // Status dot only (no tasks in compact)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.circle_filled, size: 5, color: statusColor),
+                  const SizedBox(width: 2),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: isActive
+                          ? Colors.white70
+                          : (isDark ? Colors.white54 : Colors.black54),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
