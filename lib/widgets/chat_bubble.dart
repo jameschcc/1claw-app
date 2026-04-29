@@ -174,7 +174,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                         children: [
                           MarkdownBody(
                             data: widget.message.content,
-                            selectable: true,
+                            selectable: false,
                             styleSheet: MarkdownStyleSheet(
                               p: TextStyle(
                                 fontSize: 14,
