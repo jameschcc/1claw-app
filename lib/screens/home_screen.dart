@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,13 +19,30 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   bool _dialogShown = false;
+  late bool _isWide;
+  Timer? _resizeTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _dialogShown = false;
+    // Default to portrait; corrected on first post-frame
+    _isWide = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _isWide = MediaQuery.of(context).size.width >= 600;
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _resizeTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -34,9 +53,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeMetrics() {
+    // Window resize events arrive at ~60 fps. Debounce the layout switch
+    // so the entire widget tree only rebuilds after resize settles.
+    _resizeTimer?.cancel();
+    _resizeTimer = Timer(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
+      final width = MediaQuery.of(context).size.width;
+      final expected = width >= 600;
+      if (expected != _isWide) {
+        setState(() => _isWide = expected);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isWide = width >= 600;
+    // IMPORTANT: Do NOT call MediaQuery.of(context) here. Using cached
+    // _isWide avoids registering a MediaQuery dependency, which means
+    // window resize events do NOT trigger a rebuild cascade through
+    // the entire widget tree. Only didChangeMetrics → debounce → setState
+    // triggers layout switches after resize settles.
 
     // Check for manual reconnect dialog once per flag
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -48,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
 
-    return isWide ? _buildLandscapeLayout() : _buildPortraitLayout();
+    return _isWide ? _buildLandscapeLayout() : _buildPortraitLayout();
   }
 
   void _showReconnectDialog(BuildContext context, ProfilesProvider provider) {

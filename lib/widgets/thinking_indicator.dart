@@ -24,6 +24,8 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
   static const _frames = ['  ', '. ', '..', '...'];
   int _frame = 0;
   Timer? _timer;
+  double _cachedBubbleMaxWidth = 0;
+  Timer? _resizeDebounce;
   final ScrollController _reasoningScrollController = ScrollController();
 
   @override
@@ -38,6 +40,14 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
   }
 
   @override
+  void dispose() {
+    _timer?.cancel();
+    _resizeDebounce?.cancel();
+    _reasoningScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(ThinkingIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.reasoning != widget.reasoning ||
@@ -46,13 +56,6 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
         (_) => _scrollReasoningToBottom(),
       );
     }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _reasoningScrollController.dispose();
-    super.dispose();
   }
 
   void _scrollReasoningToBottom() {
@@ -106,7 +109,14 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
               alignment: Alignment.centerLeft,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final bubbleMaxWidth = constraints.maxWidth * 0.80;
+                  final newWidth = constraints.maxWidth * 0.80;
+                  if (newWidth != _cachedBubbleMaxWidth) {
+                    _resizeDebounce?.cancel();
+                    _resizeDebounce = Timer(const Duration(milliseconds: 100), () {
+                      if (mounted) setState(() => _cachedBubbleMaxWidth = newWidth);
+                    });
+                  }
+                  final bubbleMaxWidth = _cachedBubbleMaxWidth > 0 ? _cachedBubbleMaxWidth : newWidth;
                   return ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
                     child: Container(

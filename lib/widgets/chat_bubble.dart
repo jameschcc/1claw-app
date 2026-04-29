@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +58,14 @@ class ChatBubble extends StatefulWidget {
 
 class _ChatBubbleState extends State<ChatBubble> {
   bool _isHovered = false;
+  double _cachedBubbleMaxWidth = 0;
+  Timer? _resizeDebounce;
+
+  @override
+  void dispose() {
+    _resizeDebounce?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +157,14 @@ class _ChatBubbleState extends State<ChatBubble> {
           Flexible(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final bubbleMaxWidth = constraints.maxWidth * 0.80;
+                final newWidth = constraints.maxWidth * 0.80;
+                if (newWidth != _cachedBubbleMaxWidth) {
+                  _resizeDebounce?.cancel();
+                  _resizeDebounce = Timer(const Duration(milliseconds: 100), () {
+                    if (mounted) setState(() => _cachedBubbleMaxWidth = newWidth);
+                  });
+                }
+                final bubbleMaxWidth = _cachedBubbleMaxWidth > 0 ? _cachedBubbleMaxWidth : newWidth;
                 return GestureDetector(
                   onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
                   onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
