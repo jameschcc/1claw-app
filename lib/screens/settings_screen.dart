@@ -270,16 +270,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final profilesProvider = context.read<ProfilesProvider>();
       await ServerConfigStore.save(wsUrl: wsUrl, apiUrl: apiUrl);
-      await profilesProvider.updateServerUrl(wsUrl);
+      final connected = await profilesProvider.updateServerUrl(wsUrl);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Settings saved'),
-          backgroundColor: AppConstants.onlineGreen,
-        ),
-      );
+      if (connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Settings saved'),
+            backgroundColor: AppConstants.onlineGreen,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved. Will retry connection ${Uri.parse(wsUrl).host}...'),
+            backgroundColor: Colors.orange.shade700,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 

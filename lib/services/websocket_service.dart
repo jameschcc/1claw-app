@@ -72,15 +72,17 @@ class WebSocketService {
   }
 
   /// Force a reconnect using the current server URL and client id.
-  Future<void> reconnect() async {
-    if (_disposed) return;
+  /// Returns true if connection was established, false if failed or disposed.
+  Future<bool> reconnect() async {
+    if (_disposed) return false;
     await disconnect();
-    await connect();
+    return await connect();
   }
 
   /// Connect to the WebSocket server.
-  Future<void> connect() async {
-    if (_disposed || _connected || _isConnecting) return;
+  /// Returns true if connected successfully, false otherwise.
+  Future<bool> connect() async {
+    if (_disposed || _connected || _isConnecting) return false;
 
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -99,10 +101,10 @@ class WebSocketService {
     _channel = channel;
 
     try {
-      await channel.ready;
+      await channel.ready.timeout(const Duration(seconds: 5));
       if (_disposed || !identical(_channel, channel)) {
         await _closeChannel(channel: channel);
-        return;
+        return false;
       }
 
       _setConnected(true);
@@ -135,11 +137,19 @@ class WebSocketService {
 
       // Start heartbeat
       _startHeartbeat();
+      return true;
+    } on TimeoutException {
+      debugPrint('[ws] Connect timeout');
+      _isConnecting = false;
+      await _closeChannel(channel: channel);
+      _handleDisconnect();
+      return false;
     } catch (e) {
       debugPrint('[ws] Connect error: $e');
       _isConnecting = false;
       await _closeChannel(channel: channel);
       _handleDisconnect();
+      return false;
     }
   }
 

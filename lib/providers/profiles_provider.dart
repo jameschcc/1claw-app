@@ -68,9 +68,10 @@ class ProfilesProvider extends ChangeNotifier {
     await _wsService.reconnect();
   }
 
-  Future<void> updateServerUrl(String url) async {
+  /// Update server URL and reconnect. Returns true if connected successfully.
+  Future<bool> updateServerUrl(String url) async {
     _wsService.setServerUrl(url);
-    await _wsService.reconnect();
+    return await _wsService.reconnect();
   }
 
   /// Toggle pin status for a profile.
