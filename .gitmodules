@@ -1,0 +1,3 @@
+[submodule "lib/3rd-party/system_fonts"]
+	path = lib/3rd-party/system_fonts
+	url = http://gl.min123.com:58080/john/flutter_pkg_fork_system_fonts.git
