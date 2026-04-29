@@ -11,11 +11,13 @@ import '../models/ws_message.dart';
 /// Handles auto-reconnect with exponential backoff and heartbeat ping/pong.
 class WebSocketService {
   WebSocketChannel? _channel;
+  StreamSubscription? _channelSubscription;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
 
   String _serverUrl = 'ws://localhost:8080/ws';
   bool _connected = false;
+  bool _isConnecting = false;
   bool _disposed = false;
   int _reconnectAttempt = 0;
   static const int _maxReconnectDelay = 30; // seconds
@@ -48,19 +50,31 @@ class WebSocketService {
 
   /// Connect to the WebSocket server.
   Future<void> connect() async {
-    if (_disposed) return;
-    await disconnect();
+    if (_disposed || _connected || _isConnecting) return;
+
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _isConnecting = true;
+    await _closeChannel();
+
+    final uri = Uri.parse(_serverUrl);
+    final channel = WebSocketChannel.connect(uri);
+    _channel = channel;
 
     try {
-      final uri = Uri.parse(_serverUrl);
-      _channel = WebSocketChannel.connect(uri);
-      _connected = true;
+      await channel.ready;
+      if (_disposed || !identical(_channel, channel)) {
+        await _closeChannel(channel: channel);
+        return;
+      }
+
+      _setConnected(true);
+      _isConnecting = false;
       _reconnectAttempt = 0;
       debugPrint('[ws] Connected to $_serverUrl');
-      onConnectionChange?.call(true);
 
       // Listen for messages
-      _channel!.stream.listen(
+      _channelSubscription = channel.stream.listen(
         (data) {
           if (_disposed) return;
           try {
@@ -79,26 +93,42 @@ class WebSocketService {
           debugPrint('[ws] Connection closed');
           _handleDisconnect();
         },
-        cancelOnError: false,
+        cancelOnError: true,
       );
 
       // Start heartbeat
       _startHeartbeat();
     } catch (e) {
       debugPrint('[ws] Connect error: $e');
+      _isConnecting = false;
+      await _closeChannel(channel: channel);
       _handleDisconnect();
     }
   }
 
   /// Disconnect from the server.
   Future<void> disconnect() async {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _isConnecting = false;
+    _setConnected(false);
+    await _closeChannel();
+  }
+
+  Future<void> _closeChannel({WebSocketChannel? channel}) async {
     _stopHeartbeat();
-    _connected = false;
+
+    final targetChannel = channel ?? _channel;
+    if (channel == null) {
+      final subscription = _channelSubscription;
+      _channelSubscription = null;
+      await subscription?.cancel();
+      _channel = null;
+    }
+
     try {
-      await _channel?.sink.close();
+      await targetChannel?.sink.close();
     } catch (_) {}
-    _channel = null;
-    onConnectionChange?.call(false);
   }
 
   /// Send a chat message to a specific agent profile.
@@ -193,11 +223,11 @@ class WebSocketService {
   }
 
   void _handleDisconnect() {
-    _connected = false;
-    _stopHeartbeat();
-    onConnectionChange?.call(false);
+    _isConnecting = false;
+    _setConnected(false);
+    unawaited(_closeChannel());
 
-    if (!_disposed) {
+    if (!_disposed && _reconnectTimer?.isActive != true) {
       _scheduleReconnect();
     }
   }
@@ -217,6 +247,10 @@ class WebSocketService {
   }
 
   void _scheduleReconnect() {
+    if (_disposed || _connected || _isConnecting || _reconnectTimer?.isActive == true) {
+      return;
+    }
+
     _reconnectTimer?.cancel();
     final delay = min(pow(2, _reconnectAttempt).toInt(), _maxReconnectDelay);
     _reconnectAttempt++;
@@ -237,7 +271,12 @@ class WebSocketService {
   void dispose() {
     _disposed = true;
     _reconnectTimer?.cancel();
-    _stopHeartbeat();
-    disconnect();
+    unawaited(disconnect());
+  }
+
+  void _setConnected(bool value) {
+    if (_connected == value) return;
+    _connected = value;
+    onConnectionChange?.call(value);
   }
 }
