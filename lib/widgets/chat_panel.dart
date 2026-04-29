@@ -33,6 +33,11 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _showScrollToBottom = false;
   bool _hoveringStop = false;
 
+  // Input history for Up/Down arrow navigation
+  final List<String> _inputHistory = [];
+  int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
+  String _currentDraft = ''; // saved current input when navigating history
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +100,9 @@ class _ChatPanelState extends State<ChatPanel> {
   void _switchToProfile(String profileId) {
     context.read<ChatProvider>().switchProfile(profileId);
     _requestHistory();
+    _inputHistory.clear();
+    _historyIndex = -1;
+    _currentDraft = '';
     // reverse:true — ListView naturally starts at bottom, no scroll needed
   }
 
@@ -103,9 +111,51 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
-      if (!HardwareKeyboard.instance.isShiftPressed) {
-        _sendMessage();
+    if (event is KeyDownEvent) {
+      // Enter — send message (unless Shift held for multi-line)
+      if (event.logicalKey == LogicalKeyboardKey.enter) {
+        if (!HardwareKeyboard.instance.isShiftPressed) {
+          _sendMessage();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      }
+
+      // ArrowUp — navigate input history (older)
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+          !HardwareKeyboard.instance.isShiftPressed &&
+          _inputHistory.isNotEmpty) {
+        // First time pressing Up: save current input
+        if (_historyIndex == -1) {
+          _currentDraft = _inputController.text;
+        }
+        if (_historyIndex < _inputHistory.length - 1) {
+          _historyIndex++;
+          _inputController.text =
+              _inputHistory[_inputHistory.length - 1 - _historyIndex];
+          _inputController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _inputController.text.length),
+          );
+        }
+        return KeyEventResult.handled;
+      }
+
+      // ArrowDown — navigate input history (newer)
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
+          !HardwareKeyboard.instance.isShiftPressed &&
+          _historyIndex >= 0) {
+        _historyIndex--;
+        if (_historyIndex >= 0) {
+          _inputController.text =
+              _inputHistory[_inputHistory.length - 1 - _historyIndex];
+        } else {
+          // Back to user's current draft
+          _inputController.text = _currentDraft;
+          _currentDraft = '';
+        }
+        _inputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _inputController.text.length),
+        );
         return KeyEventResult.handled;
       }
     }
@@ -158,6 +208,13 @@ class _ChatPanelState extends State<ChatPanel> {
     chatProvider.sendMessage(text);
     chatProvider.saveDraft(widget.profile.id, '');
     _inputController.clear();
+    // Push to input history
+    _inputHistory.add(text);
+    if (_inputHistory.length > 100) {
+      _inputHistory.removeAt(0);
+    }
+    _historyIndex = -1;
+    _currentDraft = '';
     _autoScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
