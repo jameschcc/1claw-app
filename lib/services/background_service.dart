@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 
 /// Android foreground service to keep the Dart isolate alive in background.
@@ -23,6 +25,20 @@ class BackgroundService {
   /// Call once at app startup (in main.dart).
   Future<void> initialize() async {
     if (_initialized) return;
+
+    // Android 14+ requires the notification channel to exist BEFORE any
+    // foreground service starts. The flutter_background_service library has
+    // a bug: when a custom notificationChannelId is provided, it skips
+    // createNotificationChannel(). We pre-create it ourselves here.
+    if (Platform.isAndroid) {
+      try {
+        const channel = MethodChannel('com.claw.claw_app/background_service');
+        await channel.invokeMethod('createNotificationChannel');
+        debugPrint('[bg] Notification channel pre-created');
+      } catch (e) {
+        debugPrint('[bg] Failed to pre-create channel: $e');
+      }
+    }
 
     final service = FlutterBackgroundService();
 
