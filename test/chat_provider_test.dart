@@ -95,7 +95,40 @@ void main() {
       provider.switchProfile('alpha');
 
       expect(provider.isThinking, isFalse);
+      expect(provider.reasoningText, isEmpty);
       expect(provider.activeMessageId, isNull);
+    });
+
+    test('clears thinking bubble state when final chat arrives', () async {
+      final wsService = _FakeWebSocketService();
+      final provider = ChatProvider(wsService);
+
+      provider.switchProfile('alpha');
+      provider.sendMessage('Hello');
+      wsService.emit(
+        WsMessage(
+          type: 'reasoning',
+          profileId: 'alpha',
+          id: 'srv-4',
+          content: 'Drafting a response',
+        ),
+      );
+
+      expect(provider.isThinking, isTrue);
+      expect(provider.reasoningText, isNotEmpty);
+
+      wsService.emit(
+        WsMessage(
+          type: 'chat',
+          profileId: 'alpha',
+          id: 'srv-4',
+          content: 'Done',
+        ),
+      );
+
+      expect(provider.isThinking, isFalse);
+      expect(provider.reasoningText, isEmpty);
+      expect(provider.messages.last.content, 'Done');
     });
   });
 }

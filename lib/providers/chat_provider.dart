@@ -165,6 +165,7 @@ class ChatProvider extends ChangeNotifier {
             _unreadCounts[profileId] = (_unreadCounts[profileId] ?? 0) + 1;
           }
           _thinkingStates[profileId] = false;
+          _reasoningTexts[profileId] = '';
           _activeMessageIds[profileId] = null;
           _saveHistory();
           notifyListeners();
