@@ -234,180 +234,137 @@ class _HomeScreenState extends State<HomeScreen>
                 )
               : profiles.first;
 
-          // Pick secondary profile for the second 25% chat panel
-          // Prefer pinned if different from active, else next in list
-          final secondaryProfile = profiles.length > 1
-              ? (profiles.firstWhere(
-                  (p) => p.id != activeId,
-                  orElse: () => profiles.last,
-                ))
-              : null;
-
-          // Percentage-based layout:
-          // 6% toolbar | 30% sidebar | 4% divider | 3% | 25% chat1 | 2% | 25% chat2 | 5% margin
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final w = constraints.maxWidth;
-              return Row(
-                children: [
-                  // ── Toolbar (6%) — darker gray, gear at bottom ──
-                  SizedBox(
-                    width: w * 0.06,
-                    child: Container(
-                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFD8D8D8),
-                      child: Column(
-                        children: [
-                          const Spacer(),
-                          Consumer<ProfilesProvider>(
-                            builder: (_, p, _) => Opacity(
-                              opacity: 0.9,
-                              child: IconButton(
-                                icon: const Icon(CupertinoIcons.refresh,
-                                    size: 24),
-                                tooltip: 'Refresh profiles from server',
-                                onPressed: p.isConnected
-                                    ? () => p.requestStatus()
-                                    : null,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Opacity(
-                            opacity: 0.9,
-                            child: IconButton(
-                              icon: const Icon(CupertinoIcons.gear,
-                                  size: 24),
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const SettingsScreen()),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+          return Row(
+            children: [
+              // ── Toolbar (60px) — darker gray, gear at bottom ──
+              Container(
+                width: 60,
+                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFD8D8D8),
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    // Refresh button — triggers server profile reload
+                    Consumer<ProfilesProvider>(
+                      builder: (_, p, _) => Opacity(
+                        opacity: 0.9,
+                        child: IconButton(
+                          icon: const Icon(CupertinoIcons.refresh,
+                              size: 24),
+                          tooltip: 'Refresh profiles from server',
+                          onPressed:
+                              p.isConnected ? () => p.requestStatus() : null,
+                        ),
                       ),
                     ),
-                  ),
-
-                  // ── Sidebar (30%) — user list + 1Claw centered ──
-                  SizedBox(
-                    width: w * 0.30,
-                    child: Container(
-                      color: isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
-                      child: Column(
-                        children: [
-                          // Sidebar header — 1Claw centered
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF282828)
-                                  : const Color(0xFFF0F0F0),
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: isDark
-                                      ? Colors.white12
-                                      : Colors.black12,
-                                  width: 0.5,
-                                ),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text('1Claw',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          // User list
-                          Expanded(
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              itemCount: profiles.length,
-                              itemBuilder: (context, index) {
-                                final profile = profiles[index];
-                                return UserListItem(
-                                  profile: profile,
-                                  isSelected: profile.id == activeId,
-                                  onTap: () {
-                                    provider.setActiveProfile(profile.id);
-                                  },
-                                  onTogglePin: () =>
-                                      provider.togglePin(profile.id),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          // Bottom bar: connection indicator centered
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF282828)
-                                  : const Color(0xFFF0F0F0),
-                              border: Border(
-                                top: BorderSide(
-                                  color: isDark
-                                      ? Colors.white12
-                                      : Colors.black12,
-                                  width: 0.5,
-                                ),
-                              ),
-                            ),
-                            child: Center(
-                              child: Consumer<ProfilesProvider>(
-                                builder: (_, p, _) => ConnectionIndicator(
-                                  isConnected: p.isConnected,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 4),
+                    Opacity(
+                      opacity: 0.9,
+                      child: IconButton(
+                        icon: const Icon(CupertinoIcons.gear,
+                            size: 24),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SettingsScreen()),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
 
-                  // ── Divider (4%) ──
-                  SizedBox(
-                    width: w * 0.04,
-                    child: Center(
-                      child: VerticalDivider(
-                        width: 1,
-                        thickness: 1,
-                        color: isDark ? Colors.white12 : Colors.black12,
+              // ── Divider 1 ──
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
+
+              // ── Left sidebar (240px) ──
+              Container(
+                width: 240,
+                color: isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
+                child: Column(
+                  children: [
+                    // Sidebar header (simplified — just the app title)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color:
+                            isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isDark ? Colors.white12 : Colors.black12,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text('1Claw',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                       ),
                     ),
-                  ),
-
-                  // ── Gap (3%) ──
-                  SizedBox(width: w * 0.03),
-
-                  // ── Chat panel 1 — 25% (52% if single profile) ──
-                  SizedBox(
-                    width: secondaryProfile != null ? w * 0.25 : w * 0.52,
-                    child: ChatPanel(profile: activeProfile, showHeader: true),
-                  ),
-
-                  // ── Gap (2%) — only if secondary exists ──
-                  if (secondaryProfile != null) SizedBox(width: w * 0.02),
-
-                  // ── Chat panel 2 (25%) — only if secondary exists ──
-                  if (secondaryProfile != null)
-                    SizedBox(
-                      width: w * 0.25,
-                      child: ChatPanel(profile: secondaryProfile, showHeader: true),
+                    // User list
+                    Expanded(
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: profiles.length,
+                        itemBuilder: (context, index) {
+                          final profile = profiles[index];
+                          return UserListItem(
+                            profile: profile,
+                            isSelected: profile.id == activeId,
+                            onTap: () {
+                              provider.setActiveProfile(profile.id);
+                            },
+                            onTogglePin: () =>
+                                provider.togglePin(profile.id),
+                          );
+                        },
+                      ),
                     ),
+                    // Bottom bar: connection only (gear moved to toolbar)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color:
+                            isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
+                        border: Border(
+                          top: BorderSide(
+                            color: isDark ? Colors.white12 : Colors.black12,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Center(
+                        child: Consumer<ProfilesProvider>(
+                          builder: (_, p, _) => ConnectionIndicator(
+                            isConnected: p.isConnected,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                  // ── Right margin (5%) ──
-                  SizedBox(width: w * 0.05),
-                ],
-              );
-            },
+              // ── Divider 2 ──
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
+
+              // ── Right: chat panel ──
+              Expanded(
+                child: ChatPanel(profile: activeProfile),
+              ),
+            ],
           );
         },
       ),
