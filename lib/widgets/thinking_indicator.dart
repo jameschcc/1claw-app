@@ -164,8 +164,8 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                           horizontal: 10,
                           vertical: 8,
                         ),
-                        child: SizedBox(
-                          height: reasoningHeight,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: reasoningHeight),
                           child: ScrollConfiguration(
                             behavior: const MaterialScrollBehavior().copyWith(
                               scrollbars: false,
@@ -175,18 +175,12 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                                 return SingleChildScrollView(
                                   controller: _reasoningScrollController,
                                   physics: const BouncingScrollPhysics(),
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      minHeight: reasoningHeight,
-                                      minWidth: constraints.maxWidth,
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(
-                                          width: constraints.maxWidth,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        width: constraints.maxWidth,
                                           child: ShaderMask(
                                             blendMode: BlendMode.srcIn,
                                             shaderCallback: (bounds) => gradient.createShader(
