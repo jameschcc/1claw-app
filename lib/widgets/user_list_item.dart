@@ -82,8 +82,8 @@ class _UserListItemState extends State<UserListItem> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
-        onLongPress: () => _showContextMenu(context),
-        onSecondaryTap: () => _showContextMenu(context),
+        onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
+        onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
         behavior: HitTestBehavior.opaque,
         child: Container(
           height: 60,
@@ -258,70 +258,68 @@ class _UserListItemState extends State<UserListItem> {
     );
   }
 
-  void _showContextMenu(BuildContext context) {
+  void _showContextMenu(BuildContext context, Offset position) {
     HapticFeedback.mediumImpact();
-    showModalBottomSheet(
+
+    final relativeRect = RelativeRect.fromLTRB(
+      position.dx, position.dy, position.dx + 1, position.dy + 1,
+    );
+
+    showMenu<String>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Pin toggle
-              ListTile(
-                leading: Icon(
-                  widget.profile.isPinned ? CupertinoIcons.star_fill : CupertinoIcons.star,
+      position: relativeRect,
+      items: [
+        PopupMenuItem<String>(
+          value: 'pin',
+          child: SizedBox(
+            width: 160,
+            child: Row(
+              children: [
+                Icon(
+                  widget.profile.isPinned
+                      ? CupertinoIcons.star_fill
+                      : CupertinoIcons.star,
+                  size: 18,
                   color: widget.profile.isPinned ? Colors.amber : null,
                 ),
-                title: Text(widget.profile.isPinned
+                const SizedBox(width: 10),
+                Text(widget.profile.isPinned
                     ? 'Unpin from favorites'
                     : 'Pin as favorite'),
-                subtitle: Text(
-                  widget.profile.isPinned
-                      ? 'Remove from top row'
-                      : 'Show at top of list',
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onTogglePin?.call();
-                },
-              ),
-              const Divider(indent: 16, endIndent: 16),
-              // Description (expandable)
-              ExpansionTile(
-                leading: const Icon(CupertinoIcons.info),
-                title: const Text('Description'),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Text(
-                      widget.profile.description,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white70
-                            : Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    );
+        PopupMenuItem<String>(
+          value: 'description',
+          child: const SizedBox(
+            width: 160,
+            child: Row(
+              children: [
+                Icon(CupertinoIcons.info, size: 18),
+                SizedBox(width: 10),
+                Text('Description'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (!mounted) return;
+      switch (value) {
+        case 'pin':
+          widget.onTogglePin?.call();
+          break;
+        case 'description':
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(widget.profile.description),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          break;
+      }
+    });
   }
 }

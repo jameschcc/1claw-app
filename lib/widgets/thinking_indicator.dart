@@ -104,11 +104,12 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
           Flexible(
             child: Align(
               alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.75,
-                ),
-                child: Container(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bubbleMaxWidth = constraints.maxWidth * 0.80;
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
+                    child: Container(
                   decoration: BoxDecoration(
                     color: isDark ? AppConstants.darkCard : Colors.grey[100],
                     borderRadius: const BorderRadius.only(
@@ -148,9 +149,6 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                       ),
                       const SizedBox(height: 8),
                       Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.75 - 28 - 8 - 28,
-                        ),
                         decoration: BoxDecoration(
                           color: (isDark ? Colors.white : Colors.black)
                               .withValues(alpha: 0.04),
@@ -213,11 +211,13 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                     ],
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
-        ],
+        ),
       ),
-    );
-  }
+    ],
+  ),
+);
+}
 }

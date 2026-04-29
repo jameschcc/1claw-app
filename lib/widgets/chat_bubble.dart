@@ -35,6 +35,7 @@ class ChatBubble extends StatefulWidget {
   final VoidCallback? onReply;
   final String? profileName;
   final bool showRetry;
+  final bool isFailed;
   final VoidCallback? onRetry;
 
   const ChatBubble({
@@ -44,6 +45,7 @@ class ChatBubble extends StatefulWidget {
     this.onReply,
     this.profileName,
     this.showRetry = false,
+    this.isFailed = false,
     this.onRetry,
   });
 
@@ -86,25 +88,31 @@ class _ChatBubbleState extends State<ChatBubble> {
             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Retry icon for user messages without agent response
+          // Retry / error icon for user messages
           if (isUser && widget.showRetry) ...[
             GestureDetector(
               onTap: widget.onRetry,
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: Tooltip(
-                  message: 'Resend message',
+                  message: widget.isFailed ? 'Send failed, tap to retry' : 'Resend message',
                   child: Container(
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
+                      color: widget.isFailed
+                          ? Colors.red.withValues(alpha: 0.15)
+                          : Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      CupertinoIcons.refresh,
+                      widget.isFailed
+                          ? CupertinoIcons.exclamationmark_circle
+                          : CupertinoIcons.refresh,
                       size: 16,
-                      color: Colors.orange.shade700,
+                      color: widget.isFailed
+                          ? Colors.red.shade700
+                          : Colors.orange.shade700,
                     ),
                   ),
                 ),
@@ -140,8 +148,8 @@ class _ChatBubbleState extends State<ChatBubble> {
               builder: (context, constraints) {
                 final bubbleMaxWidth = constraints.maxWidth * 0.80;
                 return GestureDetector(
-                  onLongPress: () => _showContextMenu(context),
-                  onSecondaryTap: () => _showContextMenu(context),
+                  onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
+                  onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
                   child: MouseRegion(
                     onEnter: (_) => setState(() => _isHovered = true),
                     onExit: (_) => setState(() => _isHovered = false),
@@ -302,65 +310,87 @@ class _ChatBubbleState extends State<ChatBubble> {
     );
   }
 
-  void _showContextMenu(BuildContext context) {
+  void _showContextMenu(BuildContext context, Offset position) {
     HapticFeedback.mediumImpact();
-    showModalBottomSheet(
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final relativeRect = RelativeRect.fromRect(
+      Rect.fromLTWH(position.dx, position.dy, 1, 1),
+      Offset.zero & (context.findRenderObject()?.paintBounds.size ?? Size.zero),
+    );
+
+    showMenu<String>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      position: relativeRect,
+      items: [
+        if (widget.message.isUser && widget.onRetry != null)
+          PopupMenuItem<String>(
+            value: 'retry',
+            child: SizedBox(
+              width: 120,
+              child: Row(
+                children: [
+                  Icon(
+                    widget.isFailed
+                        ? CupertinoIcons.exclamationmark_circle
+                        : CupertinoIcons.refresh,
+                    size: 18,
+                    color: widget.isFailed ? Colors.red.shade600 : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(widget.isFailed ? 'Retry' : 'Retry'),
+                ],
               ),
-              const SizedBox(height: 8),
-              if (widget.message.isUser && widget.onRetry != null)
-                ListTile(
-                  leading: const Icon(CupertinoIcons.refresh),
-                  title: const Text('Retry'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    widget.onRetry?.call();
-                  },
-                ),
-              ListTile(
-                leading: const Icon(CupertinoIcons.doc_on_doc),
-                title: const Text('Copy'),
-                onTap: () {
-                  Clipboard.setData(
-                      ClipboardData(text: widget.message.content));
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Copied'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(CupertinoIcons.arrowshape_turn_up_left),
-                title: const Text('Reply'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onReply?.call();
-                },
-              ),
-            ],
+            ),
+          ),
+        PopupMenuItem<String>(
+          value: 'copy',
+          child: const SizedBox(
+            width: 120,
+            child: Row(
+              children: [
+                Icon(CupertinoIcons.doc_on_doc, size: 18),
+                SizedBox(width: 10),
+                Text('Copy'),
+              ],
+            ),
           ),
         ),
-      ),
-    );
+        PopupMenuItem<String>(
+          value: 'reply',
+          child: const SizedBox(
+            width: 120,
+            child: Row(
+              children: [
+                Icon(CupertinoIcons.arrowshape_turn_up_left, size: 18),
+                SizedBox(width: 10),
+                Text('Reply'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (!mounted) return;
+      switch (value) {
+        case 'retry':
+          widget.onRetry?.call();
+          break;
+        case 'copy':
+          Clipboard.setData(ClipboardData(text: widget.message.content));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Copied'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          break;
+        case 'reply':
+          widget.onReply?.call();
+          break;
+      }
+    });
   }
 
   String _formatTime(DateTime dt) {

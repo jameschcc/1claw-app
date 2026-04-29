@@ -34,6 +34,9 @@ class ChatProvider extends ChangeNotifier {
   /// so we need our own IDs to avoid overwriting user messages with agent content.
   final Map<String, String> _agentResponseIds = {};
 
+  /// IDs of user messages that failed to send (not connected).
+  final Set<String> _failedMessageIds = {};
+
   /// Tracks the session id that was attached to the original outbound request.
   final Map<String, String?> _requestSessionIds = {};
 
@@ -55,6 +58,7 @@ class ChatProvider extends ChangeNotifier {
   ChatMessage? get replyTarget => _replyTarget;
   bool get isRequestingHistory => _isRequestingHistory;
   bool get isLoaded => _loaded;
+  bool isMessageFailed(String msgId) => _failedMessageIds.contains(msgId);
   String? get activeMessageId => _activeMessageIds[_currentProfileId];
 
   int unreadCount(String profileId) => _unreadCounts[profileId] ?? 0;
@@ -127,17 +131,36 @@ class ChatProvider extends ChangeNotifier {
     _saveHistory();
     notifyListeners();
 
-    _wsService.sendChat(
+    final sent = _wsService.sendChat(
       profileId,
       content.trim(),
       messageId: msgId,
       sessionId: sessionId,
       history: bootstrapHistory,
     );
+    if (!sent) {
+      _thinkingStates[profileId] = false;
+      _reasoningTexts[profileId] = '';
+      _activeMessageIds[profileId] = null;
+      _failedMessageIds.add(msgId);
+      notifyListeners();
+    }
+  }
+
+  /// Re-send a previously failed message — removes the failed entry,
+  /// generates a fresh message with the same content.
+  void retryMessage(String msgId) {
+    final conversation = _getConversation();
+    final idx = conversation.indexWhere((m) => m.id == msgId);
+    if (idx < 0) return;
+    final msg = conversation[idx];
+    if (!msg.isUser) return;
+    conversation.removeAt(idx);
+    _failedMessageIds.remove(msgId);
+    sendMessage(msg.content);
   }
 
   void cancelActiveResponse() {
-    if (!isThinking || _currentProfileId.isEmpty) return;
 
     final sessionId = _sessionIdForOutgoingMessage(_currentProfileId);
 

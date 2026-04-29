@@ -203,7 +203,8 @@ class WebSocketService {
   }
 
   /// Send a chat message to a specific agent profile.
-  void sendChat(
+  /// Returns true if the message was sent, false if not connected.
+  bool sendChat(
     String profileId,
     String content, {
     String? messageId,
@@ -212,7 +213,7 @@ class WebSocketService {
   }) {
     if (!_connected) {
       debugPrint('[ws] Cannot send: not connected');
-      return;
+      return false;
     }
     final msg = WsMessage(
       type: 'chat',
@@ -223,6 +224,7 @@ class WebSocketService {
       history: history,
     );
     _send(msg);
+    return true;
   }
 
   /// Request cancellation of the in-flight response for a session.

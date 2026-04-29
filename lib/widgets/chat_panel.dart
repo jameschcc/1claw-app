@@ -226,9 +226,9 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   /// Retry sending a message that the agent didn't respond to.
-  void _retryMessage(String content) {
+  void _retryMessage(String msgId, String content) {
     final chatProvider = context.read<ChatProvider>();
-    chatProvider.sendMessage(content);
+    chatProvider.retryMessage(msgId);
     _autoScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
@@ -462,21 +462,25 @@ class _ChatPanelState extends State<ChatPanel> {
                                 final msg = msgs[msgIndex];
 
                                 // Show retry on user messages where agent didn't respond:
+                                // - message marked as failed (send failure)
                                 // - newest message and not thinking (agent finished but no reply)
                                 // - next message is also user (agent skipped this one)
                                 final needsRetry =
                                     msg.isUser &&
-                                    ((msgIndex == msgs.length - 1 && !thinking) ||
+                                    (chatProvider.isMessageFailed(msg.id) ||
+                                     (msgIndex == msgs.length - 1 && !thinking) ||
                                         (msgIndex < msgs.length - 1 &&
                                             msgs[msgIndex + 1].isUser));
+                                final isFailed = chatProvider.isMessageFailed(msg.id);
                                 return ChatBubble(
                                   message: msg,
                                   profileName: profile.name,
                                   isReplyTarget: chatProvider.replyTarget?.id == msg.id,
                                   onReply: () => chatProvider.setReplyTarget(msg),
                                   showRetry: needsRetry,
+                                  isFailed: isFailed,
                                   onRetry: needsRetry
-                                      ? () => _retryMessage(msg.content)
+                                      ? () => _retryMessage(msg.id, msg.content)
                                       : null,
                                 );
                               },
