@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -24,8 +25,10 @@ class ChatProvider extends ChangeNotifier {
   final Map<String, bool> _thinkingStates = {};
   final Map<String, String> _reasoningTexts = {};
   final Map<String, String?> _activeMessageIds = {};
+  Timer? _historyRequestTimeout;
   String _currentProfileId = '';
   ChatMessage? _replyTarget;
+  bool _isRequestingHistory = false;
   bool _loaded = false;
 
   ChatProvider(this._wsService) {
@@ -38,6 +41,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isThinking => _thinkingStates[_currentProfileId] ?? false;
   String get reasoningText => _reasoningTexts[_currentProfileId] ?? '';
   ChatMessage? get replyTarget => _replyTarget;
+  bool get isRequestingHistory => _isRequestingHistory;
   bool get isLoaded => _loaded;
   String? get activeMessageId => _activeMessageIds[_currentProfileId];
 
@@ -50,6 +54,25 @@ class ChatProvider extends ChangeNotifier {
     _unreadCounts[profileId] = 0; // clear unread
     _replyTarget = null;
     notifyListeners();
+    unawaited(requestHistory());
+  }
+
+  Future<void> requestHistory({bool force = false}) async {
+    if (_currentProfileId.isEmpty || !_wsService.isConnected || _isRequestingHistory) {
+      return;
+    }
+
+    final currentMessages = _conversations[_currentProfileId] ?? const <ChatMessage>[];
+    if (!force && currentMessages.isNotEmpty) {
+      return;
+    }
+
+    _setRequestingHistory(true);
+    _historyRequestTimeout?.cancel();
+    _historyRequestTimeout = Timer(const Duration(seconds: 4), () {
+      _setRequestingHistory(false);
+    });
+    _wsService.requestHistory();
   }
 
   void sendMessage(String content) {
@@ -117,6 +140,7 @@ class ChatProvider extends ChangeNotifier {
         break;
 
       case 'history':
+        _finishHistoryRequest();
         // Server sent conversation history — merge into local conversations
         if (msg.messages != null && msg.messages!.isNotEmpty) {
           _mergeServerHistory(msg.messages!);
@@ -125,28 +149,29 @@ class ChatProvider extends ChangeNotifier {
 
       case 'reasoning':
         // Intermediate reasoning text from the AI
-        if (profileId != null && msg.sessionId != null) {
-          _sessionIds[profileId] = msg.sessionId!;
-        }
-        if (profileId != null && msg.content != null) {
+        if (profileId != null) {
+          if (msg.sessionId != null) {
+            _sessionIds[profileId] = msg.sessionId!;
+          }
           if (msg.id != null && msg.id!.isNotEmpty) {
             _activeMessageIds[profileId] = msg.id;
           }
-          final nextReasoning = msg.content!.trim();
-          if (nextReasoning.isEmpty) {
-            break;
+
+          final nextReasoning = msg.content?.trim() ?? '';
+          if (nextReasoning.isNotEmpty) {
+            final currentReasoning = _reasoningTexts[profileId] ?? '';
+            if (currentReasoning.isEmpty ||
+                nextReasoning.startsWith(currentReasoning)) {
+              _reasoningTexts[profileId] = nextReasoning;
+            } else if (!currentReasoning.contains(nextReasoning)) {
+              _reasoningTexts[profileId] = '$currentReasoning\n$nextReasoning';
+            }
           }
 
-          final currentReasoning = _reasoningTexts[profileId] ?? '';
-          if (currentReasoning.isEmpty ||
-              nextReasoning.startsWith(currentReasoning)) {
-            _reasoningTexts[profileId] = nextReasoning;
-          } else if (!currentReasoning.contains(nextReasoning)) {
-            _reasoningTexts[profileId] = '$currentReasoning\n$nextReasoning';
-          }
           _thinkingStates[profileId] = true;
           notifyListeners();
         }
+        break;
 
       case 'chat':
         if (msg.content != null && profileId != null) {
@@ -170,6 +195,7 @@ class ChatProvider extends ChangeNotifier {
           _saveHistory();
           notifyListeners();
         }
+        break;
 
       case 'cancelled':
         if (profileId != null && msg.sessionId != null) {
@@ -181,8 +207,10 @@ class ChatProvider extends ChangeNotifier {
           _activeMessageIds[profileId] = null;
           notifyListeners();
         }
+        break;
 
       case 'error':
+        _finishHistoryRequest();
         debugPrint('[chat] Error: ${msg.code}: ${msg.message}');
         if (profileId != null) {
           final errorMsg = ChatMessage(
@@ -198,6 +226,7 @@ class ChatProvider extends ChangeNotifier {
           _saveHistory();
           notifyListeners();
         }
+        break;
 
       case 'status':
       case 'pong':
@@ -375,5 +404,24 @@ class ChatProvider extends ChangeNotifier {
       return trimmed;
     }
     return '${trimmed.substring(0, _bootstrapContentLimit)}...';
+  }
+
+  void _finishHistoryRequest() {
+    _historyRequestTimeout?.cancel();
+    _historyRequestTimeout = null;
+    _setRequestingHistory(false);
+  }
+
+  void _setRequestingHistory(bool value) {
+    if (_isRequestingHistory == value) return;
+    _isRequestingHistory = value;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _historyRequestTimeout?.cancel();
+    _wsService.removeMessageListener(_handleMessage);
+    super.dispose();
   }
 }

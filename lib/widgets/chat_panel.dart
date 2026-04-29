@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -27,6 +29,7 @@ class _ChatPanelState extends State<ChatPanel> {
   final FocusNode _inputFocus = FocusNode();
   bool _autoScroll = true;
   bool _initialScrollDone = false;
+  bool _showScrollToBottom = false;
 
   @override
   void initState() {
@@ -43,6 +46,8 @@ class _ChatPanelState extends State<ChatPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.profile.id != widget.profile.id) {
       _initialScrollDone = false;
+      _autoScroll = true;
+      _showScrollToBottom = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _switchToProfile(widget.profile.id);
@@ -61,7 +66,12 @@ class _ChatPanelState extends State<ChatPanel> {
 
   void _switchToProfile(String profileId) {
     context.read<ChatProvider>().switchProfile(profileId);
+    _requestHistory();
     // reverse:true — ListView naturally starts at bottom, no scroll needed
+  }
+
+  void _requestHistory({bool force = false}) {
+    unawaited(context.read<ChatProvider>().requestHistory(force: force));
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -77,7 +87,13 @@ class _ChatPanelState extends State<ChatPanel> {
   void _onScroll() {
     if (_scrollController.hasClients) {
       // In reverse mode: pixels=0 is bottom (newest), maxScrollExtent is top
-      _autoScroll = _scrollController.position.pixels < 80;
+      final nextAutoScroll = _scrollController.position.pixels < 80;
+      if (nextAutoScroll != _autoScroll || _showScrollToBottom == nextAutoScroll) {
+        setState(() {
+          _autoScroll = nextAutoScroll;
+          _showScrollToBottom = !nextAutoScroll;
+        });
+      }
     }
   }
 
@@ -138,6 +154,66 @@ class _ChatPanelState extends State<ChatPanel> {
 
     if (!shouldCancel || !mounted) return;
     context.read<ChatProvider>().cancelActiveResponse();
+  }
+
+  Widget _buildOverlayActionButton({
+    required bool isDark,
+    required IconData icon,
+    required VoidCallback onTap,
+    String? tooltip,
+  }) {
+    final foreground = isDark ? Colors.white70 : Colors.black54;
+    final background = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+    final border = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.08);
+
+    final button = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: border),
+          ),
+          child: Icon(icon, size: 18, color: foreground),
+        ),
+      ),
+    );
+
+    if (tooltip == null || tooltip.isEmpty) {
+      return button;
+    }
+
+    return Tooltip(message: tooltip, child: button);
+  }
+
+  Widget _buildEmptyState(bool isDark, AgentProfile profile, bool isLoading) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(profile.emoji, style: const TextStyle(fontSize: 48)),
+          const SizedBox(height: 16),
+          Text(
+            isLoading
+                ? 'Loading conversation history...'
+                : 'Start a conversation with\n${profile.name}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -219,67 +295,127 @@ class _ChatPanelState extends State<ChatPanel> {
               final msgs = chatProvider.messages;
               final thinking = chatProvider.isThinking;
               final hasReasoning = chatProvider.reasoningText.trim().isNotEmpty;
+              final isLoadingHistory = chatProvider.isRequestingHistory;
 
-              if (msgs.isEmpty && !thinking && !hasReasoning) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(profile.emoji, style: const TextStyle(fontSize: 48)),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Start a conversation with\n${profile.name}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: isDark ? Colors.white54 : Colors.black54,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+              if (chatProvider.isLoaded &&
+                  msgs.isEmpty &&
+                  !thinking &&
+                  !hasReasoning &&
+                  !isLoadingHistory) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  final provider = context.read<ChatProvider>();
+                  if (provider.currentProfileId == profile.id &&
+                      provider.messages.isEmpty) {
+                    _requestHistory();
+                  }
+                });
               }
 
-              return ListView.builder(
-                reverse: true,
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: msgs.length + ((thinking || hasReasoning) ? 1 : 0),
-                itemBuilder: (context, index) {
-                  // In reverse mode, index 0 = bottom (most recent)
-                  // Thinking indicator is the newest item
-                  if ((thinking || hasReasoning) && index == 0) {
-                    return ThinkingIndicator(
-                      emoji: profile.emoji,
-                      reasoning: chatProvider.reasoningText,
-                      isActive: thinking,
-                    );
-                  }
-                  // Map ListView index to original msgs index (oldest → newest)
-                  final hasThinkingItem = thinking || hasReasoning;
-                  final msgOffset = hasThinkingItem ? index - 1 : index;
-                  final msgIndex = msgs.length - 1 - msgOffset;
-                  final msg = msgs[msgIndex];
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: RefreshIndicator(
+                      onRefresh: () => chatProvider.requestHistory(force: true),
+                      color: color,
+                      backgroundColor: isDark
+                          ? AppConstants.darkCard
+                          : Colors.white,
+                      child: msgs.isEmpty && !thinking && !hasReasoning
+                          ? ListView(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              children: [
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.55,
+                                  child: _buildEmptyState(
+                                    isDark,
+                                    profile,
+                                    isLoadingHistory,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              reverse: true,
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount:
+                                  msgs.length + ((thinking || hasReasoning) ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                // In reverse mode, index 0 = bottom (most recent)
+                                // Thinking indicator is the newest item
+                                if ((thinking || hasReasoning) && index == 0) {
+                                  return ThinkingIndicator(
+                                    emoji: profile.emoji,
+                                    reasoning: chatProvider.reasoningText,
+                                    isActive: thinking,
+                                  );
+                                }
+                                // Map ListView index to original msgs index (oldest → newest)
+                                final hasThinkingItem = thinking || hasReasoning;
+                                final msgOffset = hasThinkingItem ? index - 1 : index;
+                                final msgIndex = msgs.length - 1 - msgOffset;
+                                final msg = msgs[msgIndex];
 
-                  // Show retry on user messages where agent didn't respond:
-                  // - newest message and not thinking (agent finished but no reply)
-                  // - next message is also user (agent skipped this one)
-                  final needsRetry =
-                      msg.isUser &&
-                      ((msgIndex == msgs.length - 1 && !thinking) ||
-                          (msgIndex < msgs.length - 1 &&
-                              msgs[msgIndex + 1].isUser));
-                  return ChatBubble(
-                    message: msg,
-                    profileName: profile.name,
-                    isReplyTarget: chatProvider.replyTarget?.id == msg.id,
-                    onReply: () => chatProvider.setReplyTarget(msg),
-                    showRetry: needsRetry,
-                    onRetry: needsRetry
-                        ? () => _retryMessage(msg.content)
-                        : null,
-                  );
-                },
+                                // Show retry on user messages where agent didn't respond:
+                                // - newest message and not thinking (agent finished but no reply)
+                                // - next message is also user (agent skipped this one)
+                                final needsRetry =
+                                    msg.isUser &&
+                                    ((msgIndex == msgs.length - 1 && !thinking) ||
+                                        (msgIndex < msgs.length - 1 &&
+                                            msgs[msgIndex + 1].isUser));
+                                return ChatBubble(
+                                  message: msg,
+                                  profileName: profile.name,
+                                  isReplyTarget: chatProvider.replyTarget?.id == msg.id,
+                                  onReply: () => chatProvider.setReplyTarget(msg),
+                                  showRetry: needsRetry,
+                                  onRetry: needsRetry
+                                      ? () => _retryMessage(msg.content)
+                                      : null,
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: _buildOverlayActionButton(
+                        isDark: isDark,
+                        icon: isLoadingHistory
+                            ? Icons.sync_rounded
+                            : Icons.add_rounded,
+                        onTap: isLoadingHistory
+                            ? () {}
+                            : () => _requestHistory(force: true),
+                        tooltip: 'Load conversation history',
+                      ),
+                    ),
+                  ),
+                  if (_showScrollToBottom && msgs.isNotEmpty)
+                    Positioned(
+                      right: 16,
+                      bottom: 16,
+                      child: _buildOverlayActionButton(
+                        isDark: isDark,
+                        icon: Icons.vertical_align_bottom_rounded,
+                        onTap: () => _scrollToBottom(force: true),
+                        tooltip: 'Scroll to latest',
+                      ),
+                    ),
+                ],
               );
             },
           ),
