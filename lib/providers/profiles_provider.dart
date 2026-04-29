@@ -23,6 +23,9 @@ class ProfilesProvider extends ChangeNotifier {
       _notifySafely();
     };
     _wsService.onConnectionChange = _connectionListener;
+    _wsService.onNeedsManualReconnect = () {
+      _notifySafely();
+    };
 
     _messageListener = (msg) {
       if (msg.type == 'status' && msg.profiles != null) {
@@ -66,7 +69,11 @@ class ProfilesProvider extends ChangeNotifier {
 
   bool get isConnected => _wsService.isConnected;
   String get serverUrl => _wsService.serverUrl;
+  bool get needsManualReconnect => _wsService.needsManualReconnect;
   bool hasPinned() => _pinnedIds.isNotEmpty;
+  void resetNeedsManualReconnect() {
+    _wsService.reconnect();
+  }
 
   Future<void> reconnect() async {
     await _wsService.reconnect();

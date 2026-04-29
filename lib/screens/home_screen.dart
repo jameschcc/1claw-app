@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/constants.dart';
 import '../providers/profiles_provider.dart';
 import '../widgets/agent_card.dart';
 import '../widgets/connection_indicator.dart';
@@ -17,12 +18,76 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _dialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _dialogShown = false;
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset dialog flag when widget is new
+    _dialogShown = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 600;
 
+    // Check for manual reconnect dialog once per flag
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<ProfilesProvider>();
+      if (provider.needsManualReconnect && !_dialogShown) {
+        _dialogShown = true;
+        _showReconnectDialog(context, provider);
+      }
+    });
+
     return isWide ? _buildLandscapeLayout() : _buildPortraitLayout();
+  }
+
+  void _showReconnectDialog(BuildContext context, ProfilesProvider provider) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(CupertinoIcons.wifi_slash, size: 24),
+            SizedBox(width: 8),
+            Text('Reconnect Required'),
+          ],
+        ),
+        content: const Text(
+          'Auto-reconnect has stopped after multiple attempts.\n'
+          'Tap the button below to try connecting again.',
+        ),
+        actions: [
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              provider.resetNeedsManualReconnect();
+              _dialogShown = false;
+            },
+            icon: const Icon(CupertinoIcons.refresh),
+            label: const Text('Reconnect'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.onlineGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    ).then((_) {
+      // When dialog is dismissed, allow it to re-show if still needed
+      _dialogShown = false;
+    });
   }
 
   // ─── Portrait Mode (existing grid layout) ──────────────────────

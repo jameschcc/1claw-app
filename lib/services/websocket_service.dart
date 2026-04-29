@@ -9,8 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/ws_message.dart';
 
 /// WebSocket service that maintains a persistent connection to the 1Claw server.
-/// Handles auto-reconnect with exponential backoff and heartbeat ping/pong.
-/// Supports cross-device conversations via a persistent client_id.
+/// Handles auto-reconnect with a two-phase schedule.
 class WebSocketService {
   WebSocketChannel? _channel;
   StreamSubscription? _channelSubscription;
@@ -21,8 +20,17 @@ class WebSocketService {
   bool _connected = false;
   bool _isConnecting = false;
   bool _disposed = false;
+
+  /// Reconnect attempts counter. Phase 1 (10s × 30), Phase 2 (60s × 30), then stop.
   int _reconnectAttempt = 0;
-  static const int _maxReconnectDelay = 30; // seconds
+
+  /// True when all auto-reconnect phases are exhausted — UI should show manual dialog.
+  bool _needsManualReconnect = false;
+
+  /// Called when auto-reconnect has exhausted all attempts.
+  void Function()? onNeedsManualReconnect;
+
+  bool get needsManualReconnect => _needsManualReconnect;
 
   /// Persistent client ID for cross-device conversation identification.
   String? _clientId;
@@ -72,9 +80,13 @@ class WebSocketService {
   }
 
   /// Force a reconnect using the current server URL and client id.
-  /// Returns true if connection was established, false if failed or disposed.
+  /// Resets reconnect attempt counters.
   Future<bool> reconnect() async {
     if (_disposed) return false;
+    _reconnectAttempt = 0;
+    _needsManualReconnect = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     await disconnect();
     return await connect();
   }
@@ -82,7 +94,11 @@ class WebSocketService {
   /// Connect to the WebSocket server.
   /// Returns true if connected successfully, false otherwise.
   Future<bool> connect() async {
-    if (_disposed || _connected || _isConnecting) return false;
+    if (_disposed || _connected) return false;
+    if (_isConnecting) {
+      // Another connect() is in-flight — let the caller know we can't start a new one
+      return false;
+    }
 
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -104,12 +120,14 @@ class WebSocketService {
       await channel.ready.timeout(const Duration(seconds: 5));
       if (_disposed || !identical(_channel, channel)) {
         await _closeChannel(channel: channel);
+        _isConnecting = false;
         return false;
       }
 
       _setConnected(true);
       _isConnecting = false;
       _reconnectAttempt = 0;
+      _needsManualReconnect = false;
       debugPrint('[ws] Connected as $clientId to $_serverUrl');
 
       // Listen for messages
@@ -147,16 +165,16 @@ class WebSocketService {
       return true;
     } on TimeoutException {
       debugPrint('[ws] Connect timeout');
-      _isConnecting = false;
       await _closeChannel(channel: channel);
       _handleDisconnect();
       return false;
     } catch (e) {
       debugPrint('[ws] Connect error: $e');
-      _isConnecting = false;
       await _closeChannel(channel: channel);
       _handleDisconnect();
       return false;
+    } finally {
+      _isConnecting = false;
     }
   }
 
@@ -176,7 +194,6 @@ class WebSocketService {
     if (channel == null) {
       final subscription = _channelSubscription;
       _channelSubscription = null;
-      await subscription?.cancel();
       _channel = null;
     }
 
@@ -294,9 +311,15 @@ class WebSocketService {
     _setConnected(false);
     unawaited(_closeChannel());
 
-    if (!_disposed && _reconnectTimer?.isActive != true) {
-      _scheduleReconnect();
+    if (_disposed) return;
+
+    // If all attempts exhausted, notify the UI
+    if (_needsManualReconnect) {
+      onNeedsManualReconnect?.call();
+      return;
     }
+
+    _scheduleReconnect();
   }
 
   void _startHeartbeat() {
@@ -313,16 +336,32 @@ class WebSocketService {
     _heartbeatTimer = null;
   }
 
+  /// Schedule the next reconnect attempt.
+  /// Phase 1: 10s intervals for the first 30 attempts
+  /// Phase 2: 1-min intervals for the next 30 attempts
+  /// Phase 3: stop auto-reconnect, flag for manual reconnect
   void _scheduleReconnect() {
-    if (_disposed || _connected || _isConnecting || _reconnectTimer?.isActive == true) {
+    if (_disposed || _connected || _reconnectTimer?.isActive == true) {
       return;
     }
 
-    _reconnectTimer?.cancel();
-    final delay = min(pow(2, _reconnectAttempt).toInt(), _maxReconnectDelay);
     _reconnectAttempt++;
-    debugPrint('[ws] Reconnecting in ${delay}s (attempt $_reconnectAttempt)');
-    _reconnectTimer = Timer(Duration(seconds: delay), () {
+
+    Duration delay;
+    if (_reconnectAttempt <= 30) {
+      delay = const Duration(seconds: 10);
+    } else if (_reconnectAttempt <= 60) {
+      delay = const Duration(minutes: 1);
+    } else {
+      // Phase 3 — all auto-reconnect attempts exhausted
+      _needsManualReconnect = true;
+      debugPrint('[ws] Auto-reconnect exhausted after $_reconnectAttempt attempts');
+      onNeedsManualReconnect?.call();
+      return;
+    }
+
+    debugPrint('[ws] Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempt)');
+    _reconnectTimer = Timer(delay, () {
       if (!_disposed && !_connected) {
         connect();
       }

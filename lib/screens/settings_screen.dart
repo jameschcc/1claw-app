@@ -298,7 +298,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final profilesProvider = context.read<ProfilesProvider>();
       await ServerConfigStore.save(wsUrl: wsUrl, apiUrl: apiUrl);
-      final connected = await profilesProvider.updateServerUrl(wsUrl);
+      final connected = await profilesProvider.updateServerUrl(wsUrl)
+          .timeout(const Duration(seconds: 10), onTimeout: () => false);
 
       if (!mounted) return;
 
