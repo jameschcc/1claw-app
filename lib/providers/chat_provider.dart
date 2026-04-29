@@ -34,6 +34,9 @@ class ChatProvider extends ChangeNotifier {
   /// so we need our own IDs to avoid overwriting user messages with agent content.
   final Map<String, String> _agentResponseIds = {};
 
+  /// Tracks the session id that was attached to the original outbound request.
+  final Map<String, String?> _requestSessionIds = {};
+
   Timer? _historyRequestTimeout;
   String _currentProfileId = '';
   ChatMessage? _replyTarget;
@@ -112,9 +115,12 @@ class ChatProvider extends ChangeNotifier {
       profileId: profileId,
       content: content.trim(),
       role: 'user',
+      sessionId: sessionId,
+      requestSessionId: sessionId,
     );
 
     conversation.add(userMsg);
+    _requestSessionIds[msgId] = sessionId;
     _thinkingStates[profileId] = true;
     _reasoningTexts[profileId] = '';
     _activeMessageIds[profileId] = msgId;
@@ -184,8 +190,10 @@ class ChatProvider extends ChangeNotifier {
         // Streaming text chunk — update agent response in-place without clearing thinking
         if (msg.content != null && profileId != null) {
           _updateSessionId(profileId, msg.sessionId);
+          _attachResolvedSessionToUserMessage(profileId, msg.id, msg.sessionId);
           final conv = _getConversationFor(profileId);
           final serverId = msg.id ?? '';
+          final requestSessionId = _requestSessionIds[serverId];
 
           if (serverId.isNotEmpty) {
             // Look up our local agent response ID for this server-provided ID
@@ -194,11 +202,16 @@ class ChatProvider extends ChangeNotifier {
               // Update existing streaming agent response
               final idx = conv.indexWhere((m) => m.id == localId);
               if (idx >= 0) {
+                final current = conv[idx];
                 conv[idx] = ChatMessage(
                   id: localId,
                   profileId: profileId,
                   content: msg.content!,
                   role: 'agent',
+                  timestamp: current.timestamp,
+                  sessionId: msg.sessionId,
+                  requestSessionId:
+                      current.requestSessionId ?? requestSessionId,
                 );
               }
             } else {
@@ -210,6 +223,8 @@ class ChatProvider extends ChangeNotifier {
                 profileId: profileId,
                 content: msg.content!,
                 role: 'agent',
+                sessionId: msg.sessionId,
+                requestSessionId: requestSessionId,
               ));
             }
           } else {
@@ -219,6 +234,7 @@ class ChatProvider extends ChangeNotifier {
               profileId: profileId,
               content: msg.content!,
               role: 'agent',
+              sessionId: msg.sessionId,
             ));
           }
           // Keep thinking state — streaming is still in progress
@@ -232,6 +248,7 @@ class ChatProvider extends ChangeNotifier {
           if (_updateSessionId(profileId, msg.sessionId)) {
             unawaited(_saveHistory());
           }
+          _attachResolvedSessionToUserMessage(profileId, msg.id, msg.sessionId);
           if (msg.id != null && msg.id!.isNotEmpty) {
             _activeMessageIds[profileId] = msg.id;
           }
@@ -253,8 +270,10 @@ class ChatProvider extends ChangeNotifier {
       case 'chat':
         if (msg.content != null && profileId != null) {
           _updateSessionId(profileId, msg.sessionId);
+          _attachResolvedSessionToUserMessage(profileId, msg.id, msg.sessionId);
           final conv = _getConversationFor(profileId);
           final serverId = msg.id ?? '';
+          final requestSessionId = _requestSessionIds[serverId];
 
           if (serverId.isNotEmpty) {
             final localId = _agentResponseIds.remove(serverId);
@@ -262,11 +281,16 @@ class ChatProvider extends ChangeNotifier {
               // Update streaming agent response with final content
               final idx = conv.indexWhere((m) => m.id == localId);
               if (idx >= 0) {
+                final current = conv[idx];
                 conv[idx] = ChatMessage(
                   id: localId,
                   profileId: profileId,
                   content: msg.content!,
                   role: 'agent',
+                  timestamp: current.timestamp,
+                  sessionId: msg.sessionId,
+                  requestSessionId:
+                      current.requestSessionId ?? requestSessionId,
                 );
               }
             } else {
@@ -276,6 +300,8 @@ class ChatProvider extends ChangeNotifier {
                 profileId: profileId,
                 content: msg.content!,
                 role: 'agent',
+                sessionId: msg.sessionId,
+                requestSessionId: requestSessionId,
               ));
             }
           } else {
@@ -285,6 +311,7 @@ class ChatProvider extends ChangeNotifier {
               profileId: profileId,
               content: msg.content!,
               role: 'agent',
+              sessionId: msg.sessionId,
             ));
           }
           // Increment unread if not the currently viewed profile
@@ -304,6 +331,7 @@ class ChatProvider extends ChangeNotifier {
           if (_updateSessionId(profileId, msg.sessionId)) {
             unawaited(_saveHistory());
           }
+          _attachResolvedSessionToUserMessage(profileId, msg.id, msg.sessionId);
           _thinkingStates[profileId] = false;
           _reasoningTexts[profileId] = '';
           _activeMessageIds[profileId] = null;
@@ -320,6 +348,7 @@ class ChatProvider extends ChangeNotifier {
             profileId: profileId,
             content: '⚠️ Error: ${msg.message ?? "Unknown error"}',
             role: 'agent',
+            sessionId: msg.sessionId,
           );
           _getConversationFor(profileId).add(errorMsg);
           _thinkingStates[profileId] = false;
@@ -444,6 +473,7 @@ class ChatProvider extends ChangeNotifier {
     _reasoningTexts[_currentProfileId] = '';
     _activeMessageIds[_currentProfileId] = null;
     _agentResponseIds.clear();
+    _requestSessionIds.clear();
     _replyTarget = null;
     _saveHistory();
     notifyListeners();
@@ -456,6 +486,7 @@ class ChatProvider extends ChangeNotifier {
     _reasoningTexts.clear();
     _activeMessageIds.clear();
     _agentResponseIds.clear();
+    _requestSessionIds.clear();
     _replyTarget = null;
     _saveHistory();
     notifyListeners();
@@ -490,6 +521,41 @@ class ChatProvider extends ChangeNotifier {
 
     _sessionIds[profileId] = normalized;
     return true;
+  }
+
+  void _attachResolvedSessionToUserMessage(
+    String profileId,
+    String? messageId,
+    String? sessionId,
+  ) {
+    final normalizedId = messageId?.trim() ?? '';
+    final normalizedSession = sessionId?.trim() ?? '';
+    if (normalizedId.isEmpty || normalizedSession.isEmpty) {
+      return;
+    }
+
+    final conversation = _getConversationFor(profileId);
+    final idx = conversation.indexWhere(
+      (message) => message.id == normalizedId && message.isUser,
+    );
+    if (idx < 0) {
+      return;
+    }
+
+    final current = conversation[idx];
+    if (current.sessionId == normalizedSession) {
+      return;
+    }
+
+    conversation[idx] = ChatMessage(
+      id: current.id,
+      profileId: current.profileId,
+      content: current.content,
+      role: current.role,
+      timestamp: current.timestamp,
+      sessionId: normalizedSession,
+      requestSessionId: current.requestSessionId,
+    );
   }
 
   String _mergeReasoningText(String current, String incoming) {

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -63,6 +64,7 @@ class _ChatBubbleState extends State<ChatBubble> {
     final textColor = color.computeLuminance() > 0.5
         ? Colors.black87
         : Colors.white;
+    final debugSessionLabel = _buildDebugSessionLabel(widget.message);
 
     // Compute bubble background color
     final baseBubbleColor = widget.isReplyTarget
@@ -269,6 +271,23 @@ class _ChatBubbleState extends State<ChatBubble> {
                         ),
                         textAlign: TextAlign.end,
                       ),
+                      if (debugSessionLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            debugSessionLabel,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 9,
+                              height: 1.2,
+                              color: isUser
+                                  ? Colors.white54
+                                  : (isDark ? Colors.white30 : Colors.black38),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -346,5 +365,31 @@ class _ChatBubbleState extends State<ChatBubble> {
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  String? _buildDebugSessionLabel(ChatMessage message) {
+    if (!kDebugMode) {
+      return null;
+    }
+
+    final sessionId = message.sessionId?.trim();
+    final requestSessionId = message.requestSessionId?.trim();
+    final hasSessionId = sessionId != null && sessionId.isNotEmpty;
+    final hasRequestSessionId =
+        requestSessionId != null && requestSessionId.isNotEmpty;
+
+    if (!hasSessionId && !hasRequestSessionId) {
+      return 'sid: -';
+    }
+
+    if (message.isAgent) {
+      return 'sid: ${hasSessionId ? sessionId : '-'}\nreq: ${hasRequestSessionId ? requestSessionId : '-'}';
+    }
+
+    if (hasRequestSessionId && requestSessionId != sessionId) {
+      return 'sid: ${hasSessionId ? sessionId : '-'}\nreq: $requestSessionId';
+    }
+
+    return 'sid: ${hasSessionId ? sessionId : '-'}';
   }
 }

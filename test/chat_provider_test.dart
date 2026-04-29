@@ -258,6 +258,40 @@ void main() {
       _expectHistoryEntry(wsService.lastHistory![0], 'user', 'First question');
       _expectHistoryEntry(wsService.lastHistory![1], 'agent', 'First answer');
     });
+
+    test('stores reply session and original request session for debug display', () async {
+      final wsService = _FakeWebSocketService();
+      final provider = ChatProvider(wsService);
+
+      provider.switchProfile('alpha');
+      provider.sendMessage('First question');
+
+      final sentUserMessage = provider.messages.last;
+      expect(sentUserMessage.isUser, isTrue);
+      expect(sentUserMessage.sessionId, isNull);
+      expect(sentUserMessage.requestSessionId, isNull);
+
+      wsService.emit(
+        WsMessage(
+          type: 'chat',
+          profileId: 'alpha',
+          id: sentUserMessage.id,
+          sessionId: 'sess-server-debug',
+          content: 'First answer',
+        ),
+      );
+
+      final updatedUserMessage = provider.messages.firstWhere(
+        (message) => message.id == sentUserMessage.id,
+      );
+      final replyMessage = provider.messages.last;
+
+      expect(updatedUserMessage.sessionId, 'sess-server-debug');
+      expect(updatedUserMessage.requestSessionId, isNull);
+      expect(replyMessage.isAgent, isTrue);
+      expect(replyMessage.sessionId, 'sess-server-debug');
+      expect(replyMessage.requestSessionId, isNull);
+    });
   });
 }
 

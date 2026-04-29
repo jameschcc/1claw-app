@@ -4,6 +4,8 @@ class ChatMessage {
   final String content;
   final String role; // "user" or "agent"
   final DateTime timestamp;
+  final String? sessionId;
+  final String? requestSessionId;
 
   ChatMessage({
     required this.id,
@@ -11,6 +13,8 @@ class ChatMessage {
     required this.content,
     required this.role,
     DateTime? timestamp,
+    this.sessionId,
+    this.requestSessionId,
   }) : timestamp = timestamp ?? DateTime.now();
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -22,6 +26,8 @@ class ChatMessage {
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'] as String) ?? DateTime.now()
           : DateTime.now(),
+      sessionId: json['session_id'] as String?,
+      requestSessionId: json['request_session_id'] as String?,
     );
   }
 
@@ -31,6 +37,8 @@ class ChatMessage {
         'content': content,
         'role': role,
         'timestamp': timestamp.toIso8601String(),
+        if (sessionId != null) 'session_id': sessionId,
+        if (requestSessionId != null) 'request_session_id': requestSessionId,
   };
 
   bool get isUser => role == 'user';
