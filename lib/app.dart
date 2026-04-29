@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
@@ -73,25 +75,39 @@ class _AppStartup extends StatefulWidget {
 }
 
 class _AppStartupState extends State<_AppStartup> {
+  Timer? _defaultProfilesTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final profilesProvider = context.read<ProfilesProvider>();
       final config = await ServerConfigStore.load();
-
-      widget.wsService.setServerUrl(config.wsUrl);
-      await widget.wsService.connect();
-
       if (!mounted) return;
 
+      widget.wsService.setServerUrl(config.wsUrl);
+      final connected = await widget.wsService.connect();
+
+      if (!mounted) return;
+      if (connected) {
+        widget.wsService.requestStatus();
+      }
+
       // Load default profiles if no server response after timeout
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted && profilesProvider.profiles.isEmpty) {
+      _defaultProfilesTimer?.cancel();
+      _defaultProfilesTimer = Timer(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        final profilesProvider = context.read<ProfilesProvider>();
+        if (profilesProvider.profiles.isEmpty) {
           profilesProvider.loadDefaultProfiles();
         }
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _defaultProfilesTimer?.cancel();
+    super.dispose();
   }
 
   @override

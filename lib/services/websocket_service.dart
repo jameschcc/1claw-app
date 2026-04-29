@@ -116,12 +116,19 @@ class WebSocketService {
       _channelSubscription = channel.stream.listen(
         (data) {
           if (_disposed) return;
+          WsMessage msg;
           try {
             final json = jsonDecode(data as String) as Map<String, dynamic>;
-            final msg = WsMessage.fromJson(json);
-            _handleMessage(msg);
+            msg = WsMessage.fromJson(json);
           } catch (e) {
             debugPrint('[ws] Parse error: $e');
+            return;
+          }
+
+          try {
+            _handleMessage(msg);
+          } catch (e) {
+            debugPrint('[ws] Message handling error: $e');
           }
         },
         onError: (error) {
@@ -273,8 +280,12 @@ class WebSocketService {
     }
 
     // Forward to all listeners
-    for (final listener in _messageListeners) {
-      listener(msg);
+    for (final listener in List<void Function(WsMessage)>.from(_messageListeners)) {
+      try {
+        listener(msg);
+      } catch (e) {
+        debugPrint('[ws] Listener error: $e');
+      }
     }
   }
 

@@ -9,17 +9,21 @@ class ProfilesProvider extends ChangeNotifier {
   List<AgentProfile> _profiles = [];
   Set<String> _pinnedIds = {};
   String _activeProfileId = '';
+  bool _disposed = false;
+  late final void Function(bool connected) _connectionListener;
+  late final void Function(dynamic msg) _messageListener;
 
   ProfilesProvider(this._wsService) {
     _loadPins();
-    _wsService.onConnectionChange = (connected) {
+    _connectionListener = (connected) {
       if (connected) {
         _wsService.requestStatus();
       }
-      notifyListeners();
+      _notifySafely();
     };
+    _wsService.onConnectionChange = _connectionListener;
 
-    _wsService.addMessageListener((msg) {
+    _messageListener = (msg) {
       if (msg.type == 'status' && msg.profiles != null) {
         final profiles = msg.profiles!
             .map((p) => AgentProfile.fromJson(p as Map<String, dynamic>))
@@ -29,9 +33,10 @@ class ProfilesProvider extends ChangeNotifier {
           p.isPinned = _pinnedIds.contains(p.id);
         }
         _profiles = profiles;
-        notifyListeners();
+        _notifySafely();
       }
-    });
+    };
+    _wsService.addMessageListener(_messageListener);
   }
 
   /// Profiles sorted: pinned first, then rest.
@@ -88,13 +93,13 @@ class ProfilesProvider extends ChangeNotifier {
       }
     }
     _savePins();
-    notifyListeners();
+    _notifySafely();
   }
 
   void setActiveProfile(String profileId) {
     _activeProfileId = profileId;
     _wsService.switchProfile(profileId);
-    notifyListeners();
+    _notifySafely();
   }
 
   void updateProfiles(List<AgentProfile> profiles) {
@@ -102,14 +107,14 @@ class ProfilesProvider extends ChangeNotifier {
       p.isPinned = _pinnedIds.contains(p.id);
     }
     _profiles = profiles;
-    notifyListeners();
+    _notifySafely();
   }
 
   void updateProfileStatus(String profileId, bool online) {
     for (final p in _profiles) {
       if (p.id == profileId) {
         p.online = online;
-        notifyListeners();
+        _notifySafely();
         return;
       }
     }
@@ -129,17 +134,33 @@ class ProfilesProvider extends ChangeNotifier {
     for (final p in _profiles) {
       p.isPinned = _pinnedIds.contains(p.id);
     }
-    notifyListeners();
+    _notifySafely();
   }
 
   Future<void> _loadPins() async {
     final prefs = await SharedPreferences.getInstance();
+    if (_disposed) return;
     _pinnedIds = (prefs.getStringList('pinned_profiles') ?? []).toSet();
-    notifyListeners();
+    _notifySafely();
   }
 
   Future<void> _savePins() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pinned_profiles', _pinnedIds.toList());
+  }
+
+  void _notifySafely() {
+    if (_disposed) return;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    if (identical(_wsService.onConnectionChange, _connectionListener)) {
+      _wsService.onConnectionChange = null;
+    }
+    _wsService.removeMessageListener(_messageListener);
+    super.dispose();
   }
 }
