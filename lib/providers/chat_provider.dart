@@ -100,7 +100,7 @@ class ChatProvider extends ChangeNotifier {
     _historyRequestTimeout = Timer(const Duration(seconds: 4), () {
       _setRequestingHistory(false);
     });
-    _wsService.requestHistory();
+    _wsService.requestProfileHistory(_currentProfileId);
   }
 
   void sendMessage(String content) {
@@ -193,6 +193,15 @@ class ChatProvider extends ChangeNotifier {
         _finishHistoryRequest();
         // Server sent conversation history — merge into local conversations
         if (msg.messages != null && msg.messages!.isNotEmpty) {
+          _mergeServerHistory(msg.messages!);
+        }
+        break;
+
+      case 'profile_history':
+        _finishHistoryRequest();
+        // Cross-device profile history — merge into the correct profile's conversation
+        if (msg.messages != null && msg.messages!.isNotEmpty) {
+          debugPrint('[chat] profile_history: ${msg.messages!.length} msgs for ${msg.profileId}');
           _mergeServerHistory(msg.messages!);
         }
         break;

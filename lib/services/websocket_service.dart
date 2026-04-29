@@ -262,6 +262,12 @@ class WebSocketService {
     _send(WsMessage(type: 'get_history'));
   }
 
+  /// Request cross-device profile history for a specific profile.
+  void requestProfileHistory(String profileId) {
+    if (!_connected) return;
+    _send(WsMessage(type: 'get_profile_history', profileId: profileId));
+  }
+
   /// Send a raw JSON-serializable object.
   void _send(WsMessage msg) {
     try {
