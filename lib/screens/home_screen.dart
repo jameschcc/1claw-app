@@ -410,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         // Left: favorites (40%, single column, square cards)
         Expanded(
-          flex: 2,
+          flex: 3,
           child: Center(
             child: SingleChildScrollView(
               child: Column(
@@ -430,25 +430,29 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         // Divider between columns
+        const SizedBox(width: 12),
         VerticalDivider(
           width: 1,
           thickness: 1,
           color: isDark ? Colors.white12 : Colors.black12,
+          indent: 16,
+          endIndent: 16,
         ),
+        const SizedBox(width: 12),
         // Right: non-favorites (60%, 2-column grid, square cards)
         Expanded(
-          flex: 3,
+          flex: 5,
           child: Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const gap = 4.0;
+                const gap = 6.0;
                 final cardWidth = (constraints.maxWidth - gap) / 2;
                 return SingleChildScrollView(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       for (int i = 0; i < unpinned.length; i += 2) ...[
-                        if (i > 0) const SizedBox(height: 4),
+                        if (i > 0) const SizedBox(height: gap),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
