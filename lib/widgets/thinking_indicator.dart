@@ -204,13 +204,12 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
                                         ),
                                       ],
                                     ),
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),

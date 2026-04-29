@@ -612,14 +612,12 @@ class _ChatPanelState extends State<ChatPanel> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
+                        iconSize: 20,
                         icon: (isThinking && _hoveringStop)
                             ? const Icon(CupertinoIcons.stop, color: Colors.white)
                             : isThinking
                                 ? const Icon(CupertinoIcons.time, color: Colors.white)
-                                : Transform.rotate(
-                                    angle: -0.7854, // -45 degrees
-                                    child: const Icon(CupertinoIcons.paperplane, color: Colors.white),
-                                  ),
+                                : const Icon(CupertinoIcons.paperplane, color: Colors.white),
                         onPressed: isThinking ? _confirmCancel : _sendMessage,
                       ),
                     ),
