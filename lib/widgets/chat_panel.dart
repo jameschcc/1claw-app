@@ -8,6 +8,7 @@ import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
 import 'chat_bubble.dart';
 import 'thinking_indicator.dart';
+import 'win11_dialog.dart';
 
 /// Reusable chat panel — the core chat UI without Scaffold/AppBar.
 /// Used in the landscape sidebar layout or embedded in ChatScreen.
@@ -30,6 +31,7 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _autoScroll = true;
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
+  bool _hoveringStop = false;
 
   @override
   void initState() {
@@ -132,25 +134,16 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   Future<void> _confirmCancel() async {
-    final shouldCancel =
-        await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('中止回答？'),
-            content: const Text('当前 agent 正在回复。要立即中止这次回答吗？'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('继续等待'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('中止'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    final shouldCancel = await Win11Dialog.show(
+      context,
+      title: '中止回答？',
+      content: '当前 agent 正在回复。要立即中止这次回答吗？',
+      confirmText: '中止',
+      cancelText: '继续等待',
+      accentColor: Color(0xFFE81123), // Win11 red accent
+      icon: const Icon(Icons.stop_circle_outlined,
+          size: 32, color: Color(0xFFE81123)),
+    );
 
     if (!shouldCancel || !mounted) return;
     context.read<ChatProvider>().cancelActiveResponse();
@@ -507,17 +500,31 @@ class _ChatPanelState extends State<ChatPanel> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isThinking ? Colors.grey : color,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isThinking ? Icons.hourglass_top : Icons.send_rounded,
-                        color: Colors.white,
+                  MouseRegion(
+                    onEnter: (_) {
+                      if (isThinking) setState(() => _hoveringStop = true);
+                    },
+                    onExit: (_) {
+                      if (isThinking) setState(() => _hoveringStop = false);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: (isThinking && _hoveringStop)
+                            ? const Color(0xFFE81123)
+                            : (isThinking ? Colors.grey : color),
+                        shape: BoxShape.circle,
                       ),
-                      onPressed: isThinking ? _confirmCancel : _sendMessage,
+                      child: IconButton(
+                        icon: Icon(
+                          (isThinking && _hoveringStop)
+                              ? Icons.stop_rounded
+                              : (isThinking
+                                  ? Icons.hourglass_top
+                                  : Icons.send_rounded),
+                          color: Colors.white,
+                        ),
+                        onPressed: isThinking ? _confirmCancel : _sendMessage,
+                      ),
                     ),
                   ),
                 ],
