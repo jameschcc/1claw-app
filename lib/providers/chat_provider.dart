@@ -25,6 +25,12 @@ class ChatProvider extends ChangeNotifier {
   final Map<String, bool> _thinkingStates = {};
   final Map<String, String> _reasoningTexts = {};
   final Map<String, String?> _activeMessageIds = {};
+
+  /// Maps server-provided msg IDs → local agent response IDs.
+  /// Server reuses the user's message ID for agent responses (chat_chunk/chat),
+  /// so we need our own IDs to avoid overwriting user messages with agent content.
+  final Map<String, String> _agentResponseIds = {};
+
   Timer? _historyRequestTimeout;
   String _currentProfileId = '';
   ChatMessage? _replyTarget;
@@ -160,26 +166,41 @@ class ChatProvider extends ChangeNotifier {
         break;
 
       case 'chat_chunk':
-        // Streaming text chunk — update message in-place without clearing thinking
+        // Streaming text chunk — update agent response in-place without clearing thinking
         if (msg.content != null && profileId != null) {
           _updateSessionId(profileId, msg.sessionId);
           final conv = _getConversationFor(profileId);
-          final msgId = msg.id ?? '';
-          final existingIdx = msgId.isNotEmpty
-              ? conv.indexWhere((m) => m.id == msgId)
-              : -1;
-          if (existingIdx >= 0) {
-            // Update existing message content
-            conv[existingIdx] = ChatMessage(
-              id: conv[existingIdx].id,
-              profileId: profileId,
-              content: msg.content!,
-              role: 'agent',
-            );
+          final serverId = msg.id ?? '';
+
+          if (serverId.isNotEmpty) {
+            // Look up our local agent response ID for this server-provided ID
+            final localId = _agentResponseIds[serverId];
+            if (localId != null) {
+              // Update existing streaming agent response
+              final idx = conv.indexWhere((m) => m.id == localId);
+              if (idx >= 0) {
+                conv[idx] = ChatMessage(
+                  id: localId,
+                  profileId: profileId,
+                  content: msg.content!,
+                  role: 'agent',
+                );
+              }
+            } else {
+              // First chunk — create new agent response with its own ID
+              final newId = _generateId();
+              _agentResponseIds[serverId] = newId;
+              conv.add(ChatMessage(
+                id: newId,
+                profileId: profileId,
+                content: msg.content!,
+                role: 'agent',
+              ));
+            }
           } else {
-            // First chunk for this message — create new entry
+            // No server ID — treat as one-shot non-streaming update
             conv.add(ChatMessage(
-              id: msg.id ?? _generateId(),
+              id: _generateId(),
               profileId: profileId,
               content: msg.content!,
               role: 'agent',
@@ -218,22 +239,34 @@ class ChatProvider extends ChangeNotifier {
         if (msg.content != null && profileId != null) {
           _updateSessionId(profileId, msg.sessionId);
           final conv = _getConversationFor(profileId);
-          final msgId = msg.id ?? '';
-          final existingIdx = msgId.isNotEmpty
-              ? conv.indexWhere((m) => m.id == msgId)
-              : -1;
-          if (existingIdx >= 0) {
-            // Update existing message (e.g. final response after streaming)
-            conv[existingIdx] = ChatMessage(
-              id: conv[existingIdx].id,
-              profileId: profileId,
-              content: msg.content!,
-              role: 'agent',
-            );
+          final serverId = msg.id ?? '';
+
+          if (serverId.isNotEmpty) {
+            final localId = _agentResponseIds.remove(serverId);
+            if (localId != null) {
+              // Update streaming agent response with final content
+              final idx = conv.indexWhere((m) => m.id == localId);
+              if (idx >= 0) {
+                conv[idx] = ChatMessage(
+                  id: localId,
+                  profileId: profileId,
+                  content: msg.content!,
+                  role: 'agent',
+                );
+              }
+            } else {
+              // Batch response (no prior streaming) — add with new ID
+              conv.add(ChatMessage(
+                id: _generateId(),
+                profileId: profileId,
+                content: msg.content!,
+                role: 'agent',
+              ));
+            }
           } else {
-            // Batch response (no prior streaming) — add new
+            // No server ID — just add as new
             conv.add(ChatMessage(
-              id: msg.id ?? _generateId(),
+              id: _generateId(),
               profileId: profileId,
               content: msg.content!,
               role: 'agent',
@@ -395,6 +428,7 @@ class ChatProvider extends ChangeNotifier {
     _thinkingStates[_currentProfileId] = false;
     _reasoningTexts[_currentProfileId] = '';
     _activeMessageIds[_currentProfileId] = null;
+    _agentResponseIds.clear();
     _replyTarget = null;
     _saveHistory();
     notifyListeners();
@@ -406,6 +440,7 @@ class ChatProvider extends ChangeNotifier {
     _thinkingStates.clear();
     _reasoningTexts.clear();
     _activeMessageIds.clear();
+    _agentResponseIds.clear();
     _replyTarget = null;
     _saveHistory();
     notifyListeners();
