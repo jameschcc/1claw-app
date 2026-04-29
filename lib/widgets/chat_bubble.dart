@@ -314,11 +314,11 @@ class _ChatBubbleState extends State<ChatBubble> {
   void _showContextMenu(BuildContext context, Offset position) {
     HapticFeedback.mediumImpact();
 
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
+    // use global overlay area as containing rect so globalPosition aligns correctly
+    final overlaySize = MediaQuery.of(context).size;
     final relativeRect = RelativeRect.fromRect(
       Rect.fromLTWH(position.dx, position.dy, 1, 1),
-      Offset.zero & (context.findRenderObject()?.paintBounds.size ?? Size.zero),
+      Offset.zero & overlaySize,
     );
 
     showMenu<String>(
