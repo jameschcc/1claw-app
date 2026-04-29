@@ -80,11 +80,8 @@ class ChatProvider extends ChangeNotifier {
 
     final profileId = _currentProfileId;
     final conversation = _getConversation();
-    final hadSessionId = sessionIdForProfile(profileId).isNotEmpty;
-    final sessionId = _ensureSessionId(profileId);
-    final bootstrapHistory = hadSessionId
-        ? null
-        : _buildBootstrapHistory(conversation);
+    final sessionId = _sessionIdForOutgoingMessage(profileId);
+    final bootstrapHistory = _buildBootstrapHistory(conversation);
 
     _replyTarget = null;
     _reasoningTexts[profileId] = '';
@@ -114,10 +111,12 @@ class ChatProvider extends ChangeNotifier {
   void cancelActiveResponse() {
     if (!isThinking || _currentProfileId.isEmpty) return;
 
+    final sessionId = _sessionIdForOutgoingMessage(_currentProfileId);
+
     _wsService.cancelChat(
       _currentProfileId,
       messageId: activeMessageId,
-      sessionId: sessionIdForProfile(_currentProfileId),
+      sessionId: sessionId,
     );
   }
 
@@ -150,8 +149,8 @@ class ChatProvider extends ChangeNotifier {
       case 'reasoning':
         // Intermediate reasoning text from the AI
         if (profileId != null) {
-          if (msg.sessionId != null) {
-            _sessionIds[profileId] = msg.sessionId!;
+          if (_updateSessionId(profileId, msg.sessionId)) {
+            unawaited(_saveHistory());
           }
           if (msg.id != null && msg.id!.isNotEmpty) {
             _activeMessageIds[profileId] = msg.id;
@@ -175,9 +174,7 @@ class ChatProvider extends ChangeNotifier {
 
       case 'chat':
         if (msg.content != null && profileId != null) {
-          if (msg.sessionId != null && msg.sessionId!.isNotEmpty) {
-            _sessionIds[profileId] = msg.sessionId!;
-          }
+          _updateSessionId(profileId, msg.sessionId);
           final agentMsg = ChatMessage(
             id: msg.id ?? _generateId(),
             profileId: profileId,
@@ -198,10 +195,10 @@ class ChatProvider extends ChangeNotifier {
         break;
 
       case 'cancelled':
-        if (profileId != null && msg.sessionId != null) {
-          _sessionIds[profileId] = msg.sessionId!;
-        }
         if (profileId != null) {
+          if (_updateSessionId(profileId, msg.sessionId)) {
+            unawaited(_saveHistory());
+          }
           _thinkingStates[profileId] = false;
           _reasoningTexts[profileId] = '';
           _activeMessageIds[profileId] = null;
@@ -369,14 +366,23 @@ class ChatProvider extends ChangeNotifier {
     return '$prefix$content';
   }
 
-  String _ensureSessionId(String profileId) {
+  String? _sessionIdForOutgoingMessage(String profileId) {
     final existing = sessionIdForProfile(profileId);
-    if (existing.isNotEmpty) return existing;
+    return existing.isEmpty ? null : existing;
+  }
 
-    final sessionId =
-        'sess_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999999)}';
-    _sessionIds[profileId] = sessionId;
-    return sessionId;
+  bool _updateSessionId(String profileId, String? sessionId) {
+    final normalized = sessionId?.trim() ?? '';
+    if (normalized.isEmpty) {
+      return false;
+    }
+
+    if (_sessionIds[profileId] == normalized) {
+      return false;
+    }
+
+    _sessionIds[profileId] = normalized;
+    return true;
   }
 
   List<Map<String, String>>? _buildBootstrapHistory(

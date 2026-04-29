@@ -20,19 +20,24 @@ void main() {
       expect(provider.isThinking, isFalse);
       expect(provider.reasoningText, isEmpty);
       expect(provider.activeMessageId, isNotNull);
+      expect(wsService.lastSessionId, isNull);
 
       wsService.emit(
         WsMessage(
           type: 'reasoning',
           profileId: 'alpha',
           id: 'srv-1',
+          sessionId: 'sess-server-1',
           content: 'Drafting a response',
         ),
       );
 
+      await _settleAsyncWork();
+
       expect(provider.isThinking, isTrue);
       expect(provider.reasoningText, 'Drafting a response');
       expect(provider.activeMessageId, 'srv-1');
+      expect(provider.sessionIdForProfile('alpha'), 'sess-server-1');
     });
 
     test('preserves thinking state when switching profiles', () async {
@@ -46,6 +51,7 @@ void main() {
           type: 'reasoning',
           profileId: 'alpha',
           id: 'srv-2',
+          sessionId: 'sess-server-2',
           content: 'Drafting a response',
         ),
       );
@@ -78,6 +84,7 @@ void main() {
           type: 'reasoning',
           profileId: 'alpha',
           id: 'srv-3',
+          sessionId: 'sess-server-3',
           content: 'Drafting a response',
         ),
       );
@@ -110,6 +117,7 @@ void main() {
           type: 'reasoning',
           profileId: 'alpha',
           id: 'srv-4',
+          sessionId: 'sess-server-4',
           content: 'Drafting a response',
         ),
       );
@@ -130,11 +138,106 @@ void main() {
       expect(provider.reasoningText, isEmpty);
       expect(provider.messages.last.content, 'Done');
     });
+
+    test('maps agent history entries to assistant for bootstrap context', () async {
+      final wsService = _FakeWebSocketService();
+      final provider = ChatProvider(wsService);
+
+      provider.switchProfile('alpha');
+      provider.sendMessage('First question');
+
+      wsService.emit(
+        WsMessage(
+          type: 'chat',
+          profileId: 'alpha',
+          id: 'srv-7',
+          sessionId: 'sess-server-history',
+          content: 'First answer',
+        ),
+      );
+
+      await _settleAsyncWork();
+      provider.sendMessage('Second question');
+
+      expect(wsService.lastHistory, isNotNull);
+      expect(wsService.lastHistory, hasLength(2));
+      _expectHistoryEntry(wsService.lastHistory![0], 'user', 'First question');
+      _expectHistoryEntry(wsService.lastHistory![1], 'assistant', 'First answer');
+    });
+
+    test('reuses server-provided session id after provider restart', () async {
+      final firstWsService = _FakeWebSocketService();
+      final firstProvider = ChatProvider(firstWsService);
+
+      firstProvider.switchProfile('alpha');
+      firstProvider.sendMessage('Hello');
+
+      expect(firstWsService.lastSessionId, isNull);
+
+      firstWsService.emit(
+        WsMessage(
+          type: 'reasoning',
+          profileId: 'alpha',
+          id: 'srv-5',
+          sessionId: 'sess-server-persisted',
+          content: 'Working on it',
+        ),
+      );
+
+      await _settleAsyncWork();
+      firstProvider.dispose();
+
+      final secondWsService = _FakeWebSocketService();
+      final secondProvider = ChatProvider(secondWsService);
+      await _settleAsyncWork();
+
+      secondProvider.switchProfile('alpha');
+      secondProvider.sendMessage('Continue');
+
+      expect(secondWsService.lastSessionId, 'sess-server-persisted');
+    });
+
+    test('sends recent history with follow-up messages', () async {
+      final wsService = _FakeWebSocketService();
+      final provider = ChatProvider(wsService);
+
+      provider.switchProfile('alpha');
+      provider.sendMessage('First question');
+
+      wsService.emit(
+        WsMessage(
+          type: 'chat',
+          profileId: 'alpha',
+          id: 'srv-6',
+          sessionId: 'sess-server-history',
+          content: 'First answer',
+        ),
+      );
+
+      await _settleAsyncWork();
+      provider.sendMessage('Second question');
+
+      expect(wsService.lastSessionId, 'sess-server-history');
+      expect(wsService.lastHistory, isNotNull);
+      expect(wsService.lastHistory, hasLength(2));
+      _expectHistoryEntry(wsService.lastHistory![0], 'user', 'First question');
+      _expectHistoryEntry(wsService.lastHistory![1], 'assistant', 'First answer');
+    });
   });
+}
+
+Future<void> _settleAsyncWork() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(const Duration(milliseconds: 1));
 }
 
 class _FakeWebSocketService extends WebSocketService {
   final List<void Function(WsMessage)> _listeners = [];
+  String? lastProfileId;
+  String? lastContent;
+  String? lastMessageId;
+  String? lastSessionId;
+  List<Map<String, String>>? lastHistory;
 
   @override
   void addMessageListener(void Function(WsMessage) listener) {
@@ -153,7 +256,13 @@ class _FakeWebSocketService extends WebSocketService {
     String? messageId,
     String? sessionId,
     List<Map<String, String>>? history,
-  }) {}
+  }) {
+    lastProfileId = profileId;
+    lastContent = content;
+    lastMessageId = messageId;
+    lastSessionId = sessionId;
+    lastHistory = history;
+  }
 
   @override
   void cancelChat(String profileId, {String? messageId, String? sessionId}) {}
@@ -163,4 +272,13 @@ class _FakeWebSocketService extends WebSocketService {
       listener(message);
     }
   }
+}
+
+void _expectHistoryEntry(
+  Map<String, String> entry,
+  String role,
+  String content,
+) {
+  expect(entry['role'], role);
+  expect(entry['content'], content);
 }
