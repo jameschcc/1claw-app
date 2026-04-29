@@ -383,7 +383,8 @@ class _HomeScreenState extends State<HomeScreen>
         : _buildSingleGroup(provider, isDark);
   }
 
-  /// Two-column layout: left = favorites (larger), right = others (smaller tiles).
+  /// Two-column layout: left = favorites (40%), right = others (60%, 2-column grid).
+  /// Both card types are square.
   Widget _buildTwoColumns(
     List<AgentProfile> pinned,
     List<AgentProfile> unpinned,
@@ -407,9 +408,9 @@ class _HomeScreenState extends State<HomeScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Left: favorites (larger, flex: 3)
+        // Left: favorites (40%, single column, square cards)
         Expanded(
-          flex: 3,
+          flex: 2,
           child: Center(
             child: SingleChildScrollView(
               child: Column(
@@ -418,7 +419,10 @@ class _HomeScreenState extends State<HomeScreen>
                   for (final profile in pinned)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: _card(profile),
+                      child: AspectRatio(
+                        aspectRatio: 1.0,
+                        child: _card(profile),
+                      ),
                     ),
                 ],
               ),
@@ -431,21 +435,50 @@ class _HomeScreenState extends State<HomeScreen>
           thickness: 1,
           color: isDark ? Colors.white12 : Colors.black12,
         ),
-        // Right: non-favorites (smaller tiles, flex: 2)
+        // Right: non-favorites (60%, 2-column grid, square cards)
         Expanded(
-          flex: 2,
+          flex: 3,
           child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (final profile in unpinned)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: _card(profile, compact: true),
-                    ),
-                ],
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = 4.0;
+                final cardWidth = (constraints.maxWidth - gap) / 2;
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (int i = 0; i < unpinned.length; i += 2) ...[
+                        if (i > 0) const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Left card in pair
+                            SizedBox(
+                              width: cardWidth,
+                              child: AspectRatio(
+                                aspectRatio: 1.0,
+                                child: _card(unpinned[i], compact: true),
+                              ),
+                            ),
+                            const SizedBox(width: gap),
+                            // Right card in pair (if exists)
+                            if (i + 1 < unpinned.length)
+                              SizedBox(
+                                width: cardWidth,
+                                child: AspectRatio(
+                                  aspectRatio: 1.0,
+                                  child: _card(unpinned[i + 1], compact: true),
+                                ),
+                              )
+                            else
+                              SizedBox(width: cardWidth), // placeholder to keep left aligned
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
