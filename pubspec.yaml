@@ -17,6 +17,8 @@ dependencies:
   system_fonts:
     path: ./lib/3rd-party/system_fonts
   flutter_markdown: ^0.7.6
+  posh_flutter_components:
+    path: ./lib/3rd-party/posh_flutter_components
 
 dev_dependencies:
   flutter_test:

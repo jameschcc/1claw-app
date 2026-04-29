@@ -59,7 +59,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
         backgroundColor: color.withValues(alpha: 0.15),
       ),
-      body: ChatPanel(profile: widget.profile),
+      body: ChatPanel(profile: widget.profile, showHeader: false),
     );
   }
 

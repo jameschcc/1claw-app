@@ -18,8 +18,13 @@ import 'win11_dialog.dart';
 /// bottom naturally — no need for scrollToBottom hacks.
 class ChatPanel extends StatefulWidget {
   final AgentProfile profile;
+  final bool showHeader;
 
-  const ChatPanel({super.key, required this.profile});
+  const ChatPanel({
+    super.key,
+    required this.profile,
+    this.showHeader = true,
+  });
 
   @override
   State<ChatPanel> createState() => _ChatPanelState();
@@ -313,7 +318,8 @@ class _ChatPanelState extends State<ChatPanel> {
     return Column(
       children: [
         // Profile header bar
-        Container(
+        if (widget.showHeader)
+          Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: isDark ? AppConstants.darkSurface : Colors.white,
@@ -477,23 +483,24 @@ class _ChatPanelState extends State<ChatPanel> {
                             ),
                     ),
                   ),
-                  Positioned(
-                    top: 12,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: _buildOverlayActionButton(
-                        isDark: isDark,
-                        icon: isLoadingHistory
-                            ? CupertinoIcons.refresh
-                            : CupertinoIcons.add,
-                        onTap: isLoadingHistory
-                            ? () {}
-                            : () => _requestHistory(force: true),
-                        tooltip: 'Load conversation history',
+                  if (widget.showHeader)
+                    Positioned(
+                      top: 12,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: _buildOverlayActionButton(
+                          isDark: isDark,
+                          icon: isLoadingHistory
+                              ? CupertinoIcons.refresh
+                              : CupertinoIcons.add,
+                          onTap: isLoadingHistory
+                              ? () {}
+                              : () => _requestHistory(force: true),
+                          tooltip: 'Load conversation history',
+                        ),
                       ),
                     ),
-                  ),
                   if (_showScrollToBottom && msgs.isNotEmpty)
                     Positioned(
                       right: 16,
