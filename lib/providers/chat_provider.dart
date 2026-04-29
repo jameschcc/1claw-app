@@ -362,6 +362,24 @@ class ChatProvider extends ChangeNotifier {
         }
         break;
 
+      case 'user_message':
+        // Broadcast user message from another device — insert into conversation
+        if (msg.content != null && profileId != null) {
+          final conv = _getConversationFor(profileId);
+          // Dedup by message ID — skip if we already have this message
+          if (msg.id != null && conv.any((m) => m.id == msg.id)) break;
+          conv.add(ChatMessage(
+            id: msg.id ?? _generateId(),
+            profileId: profileId,
+            content: msg.content!,
+            role: 'user',
+            sessionId: msg.sessionId,
+          ));
+          _saveHistory();
+          notifyListeners();
+        }
+        break;
+
       case 'error':
         _finishHistoryRequest();
         debugPrint('[chat] Error: ${msg.code}: ${msg.message}');
