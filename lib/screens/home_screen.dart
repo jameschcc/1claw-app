@@ -299,13 +299,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      child: const Row(
-                        children: [
-                          Text('1Claw',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold)),
-                        ],
+                      child: const Center(
+                        child: Text('1Claw',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                       ),
                     ),
                     // User list
@@ -341,14 +339,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Consumer<ProfilesProvider>(
-                            builder: (_, p, _) => ConnectionIndicator(
-                              isConnected: p.isConnected,
-                            ),
+                      child: Center(
+                        child: Consumer<ProfilesProvider>(
+                          builder: (_, p, _) => ConnectionIndicator(
+                            isConnected: p.isConnected,
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ],

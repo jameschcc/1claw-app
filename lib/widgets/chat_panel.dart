@@ -37,6 +37,7 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _autoScroll = true;
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
+  bool _isNearTop = false;
   bool _hoveringStop = false;
 
   // Input history for Up/Down arrow navigation
@@ -77,6 +78,7 @@ class _ChatPanelState extends State<ChatPanel> {
       _initialScrollDone = false;
       _autoScroll = true;
       _showScrollToBottom = false;
+      _isNearTop = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _switchToProfile(widget.profile.id);
@@ -177,6 +179,12 @@ class _ChatPanelState extends State<ChatPanel> {
           _autoScroll = nextAutoScroll;
           _showScrollToBottom = !nextAutoScroll;
         });
+      }
+      // Detect when scrolled to top (near maxScrollExtent)
+      final nearTop = _scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 50;
+      if (nearTop != _isNearTop) {
+        setState(() => _isNearTop = nearTop);
       }
     }
   }
@@ -487,7 +495,7 @@ class _ChatPanelState extends State<ChatPanel> {
                             ),
                     ),
                   ),
-                  if (widget.showHeader)
+                  if (widget.showHeader && _isNearTop)
                     Positioned(
                       top: 12,
                       left: 0,

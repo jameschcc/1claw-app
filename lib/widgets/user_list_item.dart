@@ -129,8 +129,8 @@ class _UserListItemState extends State<UserListItem> {
                         final unread = chatProvider.unreadCount(widget.profile.id);
                         if (unread <= 0) return const SizedBox.shrink();
                         return Positioned(
-                          top: 0,
-                          right: 0,
+                          top: -4,
+                          right: -4,
                           child: Container(
                             width: 10,
                             height: 10,
