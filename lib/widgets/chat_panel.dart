@@ -38,7 +38,7 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _autoScroll = true;
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
-  bool _isOverscrolling = false;
+  bool _isNearTop = false;
   bool _hoveringStop = false;
 
   // Input history for Up/Down arrow navigation
@@ -79,7 +79,7 @@ class _ChatPanelState extends State<ChatPanel> {
       _initialScrollDone = false;
       _autoScroll = true;
       _showScrollToBottom = false;
-      _isOverscrolling = false;
+      _isNearTop = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _switchToProfile(widget.profile.id);
@@ -181,12 +181,12 @@ class _ChatPanelState extends State<ChatPanel> {
           _showScrollToBottom = !nextAutoScroll;
         });
       }
-      // Detect overscroll past the top — only during active drag
-      // (pixels > maxScrollExtent means the user is pulling past the top)
-      final overscrolling = _scrollController.position.pixels >
-          _scrollController.position.maxScrollExtent;
-      if (overscrolling != _isOverscrolling) {
-        setState(() => _isOverscrolling = overscrolling);
+      // Detect near-top: first message visible at top of the list
+      // In reverse mode, maxScrollExtent = top, pixels=0 = bottom
+      final nearTop = _scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 50;
+      if (nearTop != _isNearTop) {
+        setState(() => _isNearTop = nearTop);
       }
     }
   }
@@ -397,21 +397,6 @@ class _ChatPanelState extends State<ChatPanel> {
               final hasReasoning = chatProvider.reasoningText.trim().isNotEmpty;
               final isLoadingHistory = chatProvider.isRequestingHistory;
 
-              if (chatProvider.isLoaded &&
-                  msgs.isEmpty &&
-                  !thinking &&
-                  !hasReasoning &&
-                  !isLoadingHistory) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!mounted) return;
-                  final provider = context.read<ChatProvider>();
-                  if (provider.currentProfileId == profile.id &&
-                      provider.messages.isEmpty) {
-                    _requestHistory();
-                  }
-                });
-              }
-
               return Stack(
                 children: [
                   Positioned.fill(
@@ -491,7 +476,7 @@ class _ChatPanelState extends State<ChatPanel> {
                             ),
                     ),
                   ),
-                  if (widget.showHeader && _isOverscrolling)
+                  if (widget.showHeader && (msgs.isEmpty || _isNearTop))
                     Positioned(
                       top: 12,
                       left: 0,
