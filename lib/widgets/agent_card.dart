@@ -53,9 +53,7 @@ class AgentCard extends StatelessWidget {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 200),
         decoration: BoxDecoration(
-        color: isActive
-            ? color
-            : color.withValues(alpha: 0.12),
+        color: color,
           borderRadius: BorderRadius.circular(12),
           border: isActive
               ? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2)
@@ -235,9 +233,7 @@ class AgentCard extends StatelessWidget {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 140, minWidth: 80),
         decoration: BoxDecoration(
-        color: isActive
-            ? color.withValues(alpha: 0.7)
-            : color.withValues(alpha: 0.1),
+        color: color,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isActive
