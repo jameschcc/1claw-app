@@ -133,8 +133,8 @@ class _UserListItemState extends State<UserListItem> {
                           top: -4,
                           right: -4,
                           child: Container(
-                            width: 10,
-                            height: 10,
+                            width: 8,
+                            height: 8,
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.red,

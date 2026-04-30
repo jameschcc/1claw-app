@@ -339,8 +339,8 @@ class _ChatBubbleState extends State<ChatBubble> {
                           // </> raw mode toggle — Cupertino icon, shown on hover for agent messages
                           if (!widget.message.isUser && _isHovered)
                             Positioned(
-                              top: -8,
-                              right: -8,
+                              top: 5,
+                              right: 5,
                               child: GestureDetector(
                                 onTap: _toggleRawMode,
                                 child: Tooltip(
