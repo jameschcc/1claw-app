@@ -38,7 +38,6 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _autoScroll = true;
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
-  bool _isNearTop = false;
 
   // Input history for Up/Down arrow navigation
   final List<String> _inputHistory = [];
@@ -78,7 +77,6 @@ class _ChatPanelState extends State<ChatPanel> {
       _initialScrollDone = false;
       _autoScroll = true;
       _showScrollToBottom = false;
-      _isNearTop = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _switchToProfile(widget.profile.id);
@@ -179,13 +177,6 @@ class _ChatPanelState extends State<ChatPanel> {
           _autoScroll = nextAutoScroll;
           _showScrollToBottom = !nextAutoScroll;
         });
-      }
-      // Detect near-top: first message visible at top of the list
-      // In reverse mode, maxScrollExtent = top, pixels=0 = bottom
-      final nearTop = _scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 50;
-      if (nearTop != _isNearTop) {
-        setState(() => _isNearTop = nearTop);
       }
     }
   }
@@ -451,8 +442,28 @@ class _ChatPanelState extends State<ChatPanel> {
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               itemCount:
-                                  msgs.length + ((thinking || hasReasoning) ? 1 : 0),
+                                  msgs.length + ((thinking || hasReasoning) ? 1 : 0) + (widget.showHeader ? 1 : 0),
                               itemBuilder: (context, index) {
+                                // Last item in reverse mode = top of list = history button
+                                final hasHistoryButton = widget.showHeader;
+                                final totalItems = msgs.length + ((thinking || hasReasoning) ? 1 : 0) + (hasHistoryButton ? 1 : 0);
+                                if (hasHistoryButton && index == totalItems - 1) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      child: _buildOverlayActionButton(
+                                        isDark: isDark,
+                                        icon: isLoadingHistory
+                                            ? CupertinoIcons.refresh
+                                            : CupertinoIcons.add,
+                                        onTap: isLoadingHistory
+                                            ? () {}
+                                            : () => _requestHistory(force: true),
+                                        tooltip: 'Load conversation history',
+                                      ),
+                                    ),
+                                  );
+                                }
                                 // In reverse mode, index 0 = bottom (most recent)
                                 // Thinking indicator is the newest item
                                 if ((thinking || hasReasoning) && index == 0) {
@@ -494,7 +505,8 @@ class _ChatPanelState extends State<ChatPanel> {
                             ),
                     ),
                   ),
-                  if (widget.showHeader && (msgs.isEmpty || _isNearTop))
+                  // Load history button — always visible above the first message
+                  if (widget.showHeader && msgs.isEmpty)
                     Positioned(
                       top: 12,
                       left: 0,
