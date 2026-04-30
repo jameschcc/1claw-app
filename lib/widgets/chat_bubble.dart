@@ -439,10 +439,10 @@ class _ChatBubbleState extends State<ChatBubble> {
                                     onEnter: (_) => setState(() => _isHoveredButton = true),
                                     onExit: (_) => setState(() => _isHoveredButton = false),
                                     child: Container(
-                                      padding: const EdgeInsets.all(2),
+                                      padding: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
                                         color: _showRaw || _isHoveredButton
-                                            ? (isDark ? Colors.blue.shade700 : Colors.blue.shade100)
+                                            ? (isDark ? const Color.fromARGB(131, 255, 255, 255) : const Color.fromARGB(103, 207, 207, 207))
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
@@ -450,8 +450,8 @@ class _ChatBubbleState extends State<ChatBubble> {
                                         CupertinoIcons.chevron_left_slash_chevron_right,
                                         size: 14,
                                         color: _showRaw || _isHoveredButton
-                                            ? Colors.blue
-                                            : (isDark ? Colors.white54 : Colors.grey.shade500),
+                                            ? const Color.fromARGB(255, 17, 17, 17)
+                                            : (isDark ? const Color.fromARGB(136, 255, 255, 255) : Colors.grey.shade500),
                                       ),
                                     ),
                                   ),
