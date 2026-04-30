@@ -49,6 +49,9 @@ class ChatProvider extends ChangeNotifier {
   /// Number of pending messages.
   int get pendingCount => _pendingQueue.length;
 
+  /// The pending queue items — for UI display.
+  List<String> get pendingQueue => List.unmodifiable(_pendingQueue);
+
   /// Get chat messages for a specific profile (public access).
   List<ChatMessage> getMessagesForProfile(String profileId) =>
       _getConversationFor(profileId);

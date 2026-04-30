@@ -259,14 +259,13 @@ class _ChatPanelState extends State<ChatPanel> {
       case 1: // 中止回答
         chatProvider.cancelActiveResponse();
         break;
-      case 2: // 稍后发送
+      case 2: // 稍后发送 — just queue, don't interrupt agent
         if (inputText.isNotEmpty) {
           chatProvider.enqueueMessage(_inputController.text);
           chatProvider.saveDraft(widget.profile.id, '');
           _inputController.clear();
           showToast(context, '已加入发送队列（${chatProvider.pendingCount}条）');
         }
-        chatProvider.cancelActiveResponse();
         break;
       // case 0 (继续等待): do nothing
     }
@@ -554,6 +553,59 @@ class _ChatPanelState extends State<ChatPanel> {
                     onTap: () => chatProvider.clearReplyTarget(),
                     child: Icon(CupertinoIcons.clear, size: 16, color: color),
                   ),
+                ],
+              ),
+            );
+          },
+        ),
+
+        // Pending queue display
+        Consumer<ChatProvider>(
+          builder: (context, chatProvider, _) {
+            if (!chatProvider.hasPendingMessages) return const SizedBox.shrink();
+            return Container(
+              color: isDark
+                  ? AppConstants.darkSurface
+                  : Colors.white,
+              padding: const EdgeInsets.only(left: 16, right: 12, top: 5, bottom: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Icon(CupertinoIcons.clock, size: 12,
+                          color: isDark ? Colors.white54 : Colors.black45),
+                      const SizedBox(width: 4),
+                      Text(
+                        '发送队列（${chatProvider.pendingCount}条）',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                    ],
+                  ),
+                  for (final item in chatProvider.pendingQueue)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 1.5),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 3),
                 ],
               ),
             );
