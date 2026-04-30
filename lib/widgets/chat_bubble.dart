@@ -58,6 +58,7 @@ class ChatBubble extends StatefulWidget {
 
 class _ChatBubbleState extends State<ChatBubble> {
   bool _isHovered = false;
+  bool _showRaw = false;
   double _cachedBubbleMaxWidth = 0;
   Timer? _resizeDebounce;
 
@@ -65,6 +66,10 @@ class _ChatBubbleState extends State<ChatBubble> {
   void dispose() {
     _resizeDebounce?.cancel();
     super.dispose();
+  }
+
+  void _toggleRawMode() {
+    setState(() => _showRaw = !_showRaw);
   }
 
   @override
@@ -186,134 +191,189 @@ class _ChatBubbleState extends State<ChatBubble> {
                       ),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Stack(
+                        clipBehavior: Clip.none,
                         children: [
-                          MarkdownBody(
-                            data: widget.message.content,
-                            selectable: false,
-                            styleSheet: MarkdownStyleSheet(
-                              p: TextStyle(
-                                fontSize: 14,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              code: TextStyle(
-                                fontSize: 13,
-                                backgroundColor: isUser
-                                    ? Colors.white24
-                                    : (isDark ? Colors.white12 : Colors.grey.shade200),
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.green.shade200 : Colors.red.shade800),
-                              ),
-                              codeblockDecoration: BoxDecoration(
-                                color: isUser
-                                    ? Colors.white12
-                                    : (isDark ? Colors.black26 : Colors.grey.shade100),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              h1: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              h2: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              h3: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              a: TextStyle(
-                                fontSize: 14,
-                                color: isUser
-                                    ? Colors.white70
-                                    : (isDark ? Colors.blue.shade200 : Colors.blue),
-                                decoration: TextDecoration.underline,
-                              ),
-                              blockquoteDecoration: BoxDecoration(
-                                border: Border(
-                                  left: BorderSide(
-                                    width: 3,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_showRaw)
+                                SelectableText(
+                                  widget.message.content,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontFamily: 'monospace',
                                     color: isUser
-                                        ? Colors.white38
-                                        : (isDark
-                                            ? Colors.white24
-                                            : Colors.grey.shade400),
+                                        ? Colors.white
+                                        : (isDark ? Colors.white : Colors.black87),
+                                  ),
+                                )
+                              else
+                                MarkdownBody(
+                                  data: widget.message.content,
+                                  selectable: false,
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: TextStyle(
+                                      fontSize: 14,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    code: TextStyle(
+                                      fontSize: 13,
+                                      backgroundColor: isUser
+                                          ? Colors.white24
+                                          : (isDark ? Colors.white12 : Colors.grey.shade200),
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.green.shade200 : Colors.red.shade800),
+                                    ),
+                                    codeblockDecoration: BoxDecoration(
+                                      color: isUser
+                                          ? Colors.white12
+                                          : (isDark ? Colors.black26 : Colors.grey.shade100),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    h1: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    h2: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    h3: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    a: TextStyle(
+                                      fontSize: 14,
+                                      color: isUser
+                                          ? Colors.white70
+                                          : (isDark ? Colors.blue.shade200 : Colors.blue),
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    blockquoteDecoration: BoxDecoration(
+                                      border: Border(
+                                        left: BorderSide(
+                                          width: 3,
+                                          color: isUser
+                                              ? Colors.white38
+                                              : (isDark
+                                                  ? Colors.white24
+                                                  : Colors.grey.shade400),
+                                        ),
+                                      ),
+                                    ),
+                                    listBullet: TextStyle(
+                                      fontSize: 14,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    strong: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    em: TextStyle(
+                                      fontStyle: FontStyle.italic,
+                                      color: isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                    horizontalRuleDecoration: BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: isUser
+                                              ? Colors.white24
+                                              : (isDark
+                                                  ? Colors.white12
+                                                  : Colors.grey.shade300),
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              listBullet: TextStyle(
-                                fontSize: 14,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              strong: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              em: TextStyle(
-                                fontStyle: FontStyle.italic,
-                                color: isUser
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                              horizontalRuleDecoration: BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(
-                                    color: isUser
-                                        ? Colors.white24
-                                        : (isDark
-                                            ? Colors.white12
-                                            : Colors.grey.shade300),
-                                    width: 1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatTime(widget.message.timestamp),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isUser
-                                  ? Colors.white60
-                                  : (isDark ? Colors.white38 : Colors.black38),
-                            ),
-                            textAlign: TextAlign.end,
-                          ),
-                          if (debugSessionLabel != null) ...[
-                            const SizedBox(height: 2),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                debugSessionLabel,
-                                textAlign: TextAlign.end,
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatTime(widget.message.timestamp),
                                 style: TextStyle(
-                                  fontSize: 9,
-                                  height: 1.2,
+                                  fontSize: 10,
                                   color: isUser
-                                      ? Colors.white54
-                                      : (isDark ? Colors.white30 : Colors.black38),
+                                      ? Colors.white60
+                                      : (isDark ? Colors.white38 : Colors.black38),
+                                ),
+                                textAlign: TextAlign.end,
+                              ),
+                              if (debugSessionLabel != null) ...[
+                                const SizedBox(height: 2),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    debugSessionLabel,
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      height: 1.2,
+                                      color: isUser
+                                          ? Colors.white54
+                                          : (isDark ? Colors.white30 : Colors.black38),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          // </> raw mode toggle — shown on hover for agent messages
+                          if (!widget.message.isUser && _isHovered)
+                            Positioned(
+                              top: -10,
+                              right: -10,
+                              child: GestureDetector(
+                                onTap: _toggleRawMode,
+                                child: Tooltip(
+                                  message: _showRaw ? 'View rendered' : 'View raw markdown',
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: _showRaw
+                                          ? (isDark ? Colors.blue.shade700 : Colors.blue.shade100)
+                                          : (isDark ? Colors.white12 : Colors.grey.shade200),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: _showRaw
+                                            ? Colors.blue
+                                            : (isDark ? Colors.white24 : Colors.grey.shade400),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '</>',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'monospace',
+                                        color: _showRaw
+                                            ? Colors.blue
+                                            : (isDark ? Colors.white70 : Colors.grey.shade700),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ),
