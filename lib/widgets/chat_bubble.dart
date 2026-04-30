@@ -405,6 +405,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                                 ),
                                 textAlign: TextAlign.end,
                               ),
+                              /*
                               if (_isHovered && debugSessionLabel != null) ...[
                                 const SizedBox(height: 2),
                                 Align(
@@ -422,6 +423,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                                   ),
                                 ),
                               ],
+                              */
                             ],
                           ),
                           // </> raw mode toggle — Cupertino icon, shown on hover for agent messages
