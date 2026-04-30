@@ -52,6 +52,39 @@ class ChatProvider extends ChangeNotifier {
   /// The pending queue items — for UI display.
   List<String> get pendingQueue => List.unmodifiable(_pendingQueue);
 
+  /// Remove an item from pending queue by index. Returns the removed content.
+  String removeFromPendingQueue(int index) {
+    if (index < 0 || index >= _pendingQueue.length) return '';
+    final removed = _pendingQueue.removeAt(index);
+    notifyListeners();
+    return removed;
+  }
+
+  /// Per-profile input history for up/down navigation (max 10 per profile).
+  final Map<String, List<String>> _inputHistories = {};
+
+  /// Get input history for a profile.
+  List<String> inputHistoryForProfile(String profileId) =>
+      _inputHistories[profileId] ?? [];
+
+  /// Push content to input history (max 10). The last entry = most recent.
+  void pushToInputHistory(String profileId, String content) {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return;
+    _inputHistories.putIfAbsent(profileId, () => []);
+    final hist = _inputHistories[profileId]!;
+    hist.add(trimmed);
+    if (hist.length > 10) {
+      hist.removeAt(0);
+    }
+    // Don't notify — input history is for keyboard nav, not UI display
+  }
+
+  /// Clear input history for a profile.
+  void clearInputHistory(String profileId) {
+    _inputHistories.remove(profileId);
+  }
+
   /// Get chat messages for a specific profile (public access).
   List<ChatMessage> getMessagesForProfile(String profileId) =>
       _getConversationFor(profileId);

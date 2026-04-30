@@ -40,9 +40,9 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _showScrollToBottom = false;
 
   // Input history for Up/Down arrow navigation
-  final List<String> _inputHistory = [];
   int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
   String _currentDraft = ''; // saved current input when navigating history
+  List<String> _inputHistory = [];
 
   @override
   void initState() {
@@ -106,7 +106,8 @@ class _ChatPanelState extends State<ChatPanel> {
   void _switchToProfile(String profileId) {
     context.read<ChatProvider>().switchProfile(profileId);
     _requestHistory();
-    _inputHistory.clear();
+    final provider = context.read<ChatProvider>();
+    _inputHistory = List<String>.from(provider.inputHistoryForProfile(profileId));
     _historyIndex = -1;
     _currentDraft = '';
     // reverse:true — ListView naturally starts at bottom, no scroll needed
@@ -209,8 +210,9 @@ class _ChatPanelState extends State<ChatPanel> {
     chatProvider.saveDraft(widget.profile.id, '');
     _inputController.clear();
     // Push to input history
+    chatProvider.pushToInputHistory(widget.profile.id, text);
     _inputHistory.add(text);
-    if (_inputHistory.length > 100) {
+    if (_inputHistory.length > 10) {
       _inputHistory.removeAt(0);
     }
     _historyIndex = -1;
@@ -645,14 +647,40 @@ class _ChatPanelState extends State<ChatPanel> {
                       ),
                     ],
                   ),
-                  for (final item in chatProvider.pendingQueue)
+                  for (final entry in chatProvider.pendingQueue.asMap().entries)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 1.5),
                       child: Row(
                         children: [
+                          GestureDetector(
+                            onTap: () {
+                              final removed = chatProvider
+                                  .removeFromPendingQueue(entry.key);
+                              if (removed.isNotEmpty) {
+                                final pid = widget.profile.id;
+                                chatProvider
+                                    .pushToInputHistory(pid, removed);
+                                _inputHistory.add(removed);
+                                if (_inputHistory.length > 10) {
+                                  _inputHistory.removeAt(0);
+                                }
+                              }
+                            },
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.only(right: 6, top: 2),
+                              child: Icon(
+                                CupertinoIcons.clear_circled_solid,
+                                size: 14,
+                                color: isDark
+                                    ? Colors.white38
+                                    : Colors.black38,
+                              ),
+                            ),
+                          ),
                           Expanded(
                             child: Text(
-                              item,
+                              entry.value,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
