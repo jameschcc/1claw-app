@@ -103,6 +103,8 @@ class _UserListItemState extends State<UserListItem> {
               children: [
                 // Avatar with unread badge
                 Stack(
+                  clipBehavior: Clip.none,
+
                   children: [
                     Container(
                       width: 40,
@@ -133,9 +135,16 @@ class _UserListItemState extends State<UserListItem> {
                           top: -4,
                           right: -4,
                           child: Container(
-                            width: 8,
-                            height: 8,
+                            width: 12,
+                            height: 12,
                             decoration: const BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color.fromARGB(88, 0, 0, 0),
+                                  blurRadius: 1,
+                                  spreadRadius: .5,
+                                ),
+                              ],
                               shape: BoxShape.circle,
                               color: Colors.red,
                             ),
