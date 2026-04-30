@@ -1,3 +1,5 @@
+import 'package:flutter/painting.dart';
+
 class AgentProfile {
   final String id;
   final String name;
@@ -45,12 +47,13 @@ class AgentProfile {
         'tasks_queue': tasksQueue,
   };
 
-  /// Parse hex color string to Flutter Color
+  /// Generate avatar color from name using HSL formula.
+  /// h = (firstLowercaseAscii - '0') / ('z' - '0') * 360
+  /// s = 0.75, l = 0.6
   int get colorValue {
-    final hex = color.replaceAll('#', '');
-    if (hex.length == 6) {
-      return int.parse('FF$hex', radix: 16);
-    }
-    return 0xFF0078D7;
+    final first = name.isNotEmpty ? name.toLowerCase().codeUnitAt(0) : 97;
+    final clamped = (first >= 97 && first <= 122) ? first : 97; // 'a' – 'z'
+    final h = (clamped - 48) / (122 - 48) * 360;
+    return HSLColor.fromAHSL(1.0, h, 0.75, 0.6).toColor().toARGB32();
   }
 }
