@@ -45,6 +45,7 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _isSearching = false;
   String _searchQuery = '';
   final List<_SearchResult> _searchResults = [];
+  Timer? _searchDebounce;
 
   // Input history for Up/Down arrow navigation
   int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
@@ -60,7 +61,6 @@ class _ChatPanelState extends State<ChatPanel> {
     });
     _scrollController.addListener(_onScroll);
     _inputFocus.onKeyEvent = _onKeyEvent;
-    _searchController.addListener(_onSearchChanged);
   }
 
   void _restoreDraft() {
@@ -192,39 +192,46 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (!_isSearching) {
-        _searchController.clear();
+    if (_isSearching) {
+      _searchController.clear();
+      _searchDebounce?.cancel();
+      setState(() {
+        _isSearching = false;
         _searchQuery = '';
         _searchResults.clear();
-      } else {
-        _searchController.text = _searchQuery;
-        _onSearchChanged();
-      }
+      });
+    } else {
+      setState(() { _isSearching = true; });
+    }
+  }
+
+  void _onSearchChanged(String text) {
+    _searchDebounce?.cancel();
+    final query = text.trim().toLowerCase();
+    if (query == _searchQuery) return;
+    _searchQuery = query;
+    _searchDebounce = Timer(const Duration(milliseconds: 100), () {
+      _performSearch(query);
     });
   }
 
-  void _onSearchChanged() {
-    final query = _searchController.text.trim().toLowerCase();
-    if (query == _searchQuery) return;
-    _searchQuery = query;
-    _performSearch(query);
-  }
-
   void _performSearch(String query) {
-    _searchResults.clear();
-    if (query.isEmpty) {
-      setState(() {});
-      return;
-    }
-    final msgs = context.read<ChatProvider>().messages;
-    for (int i = 0; i < msgs.length; i++) {
-      if (msgs[i].content.toLowerCase().contains(query)) {
-        _searchResults.add(_SearchResult(originalIndex: i, message: msgs[i]));
+    final results = <_SearchResult>[];
+    if (query.isNotEmpty) {
+      final msgs = context.read<ChatProvider>().messages;
+      for (int i = 0; i < msgs.length; i++) {
+        if (msgs[i].content.toLowerCase().contains(query)) {
+          results.add(_SearchResult(originalIndex: i, message: msgs[i]));
+        }
       }
     }
-    setState(() {});
+    if (mounted) {
+      setState(() {
+        _searchResults
+          ..clear()
+          ..addAll(results);
+      });
+    }
   }
 
   void _scrollToMessage(int originalIndex) {
@@ -421,6 +428,7 @@ class _ChatPanelState extends State<ChatPanel> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
+                    onChanged: _onSearchChanged,
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: '搜索所有消息...',
