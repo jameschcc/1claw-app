@@ -18,13 +18,24 @@ class BackgroundService {
 
   bool _initialized = false;
 
+  bool get _isSupportedPlatform => Platform.isAndroid || Platform.isIOS;
+
   /// Whether the foreground service is currently active.
-  Future<bool> isRunning() => FlutterBackgroundService().isRunning();
+  Future<bool> isRunning() {
+    if (!_isSupportedPlatform) return Future.value(false);
+    return FlutterBackgroundService().isRunning();
+  }
 
   /// Initialize the background service.
   /// Call once at app startup (in main.dart).
   Future<void> initialize() async {
     if (_initialized) return;
+
+    if (!_isSupportedPlatform) {
+      debugPrint('[bg] Background service not supported on this platform');
+      _initialized = true;
+      return;
+    }
 
     // Android 14+ requires the notification channel to exist BEFORE any
     // foreground service starts. The flutter_background_service library has
@@ -69,6 +80,10 @@ class BackgroundService {
       debugPrint('[bg] Not initialized yet');
       return;
     }
+    if (!_isSupportedPlatform) {
+      debugPrint('[bg] Background service not supported on this platform');
+      return;
+    }
     final service = FlutterBackgroundService();
     if (await service.isRunning()) {
       debugPrint('[bg] Already running');
@@ -80,6 +95,10 @@ class BackgroundService {
 
   /// Stop the foreground service.
   Future<void> stop() async {
+    if (!_isSupportedPlatform) {
+      debugPrint('[bg] Background service not supported on this platform');
+      return;
+    }
     final service = FlutterBackgroundService();
     if (!await service.isRunning()) return;
     // Send stop signal to the background isolate
