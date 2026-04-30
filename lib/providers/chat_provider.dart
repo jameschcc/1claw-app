@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../models/ws_message.dart';
+import '../services/notification_service.dart';
 import '../services/websocket_service.dart';
 
 const int _maxMessagesPerProfile = 200;
@@ -429,6 +430,11 @@ class ChatProvider extends ChangeNotifier {
           // Increment unread if not the currently viewed profile
           if (profileId != _currentProfileId) {
             _unreadCounts[profileId] = (_unreadCounts[profileId] ?? 0) + 1;
+            // Fire system notification for new agent message
+            NotificationService().showMessageNotification(
+              profileName: profileId,
+              content: msg.content!,
+            );
           }
           _thinkingStates[profileId] = false;
           _reasoningTexts[profileId] = '';
@@ -471,6 +477,14 @@ class ChatProvider extends ChangeNotifier {
           ));
           _saveHistory();
           notifyListeners();
+
+          // Notify for messages from other devices on non-visible profiles
+          if (profileId != _currentProfileId) {
+            NotificationService().showMessageNotification(
+              profileName: profileId,
+              content: msg.content!,
+            );
+          }
         }
         break;
 

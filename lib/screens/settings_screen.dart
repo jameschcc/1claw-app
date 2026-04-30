@@ -7,6 +7,7 @@ import '../providers/font_settings_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/server_config_store.dart';
+import '../services/notification_service.dart';
 import '../widgets/font_picker_dialog.dart';
 import '../widgets/toast.dart';
 
@@ -151,6 +152,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (selected != null && context.mounted) {
                       context.read<FontSettingsProvider>().setUIFont(selected);
                     }
+                  },
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Notifications
+          _sectionHeader('Notifications'),
+          const SizedBox(height: 8),
+          Card(
+            child: StatefulBuilder(
+              builder: (context, setInnerState) {
+                final notif = NotificationService();
+                return SwitchListTile(
+                  title: const Text('Message Notifications'),
+                  subtitle: Text(
+                    notif.enabled
+                        ? 'Show system notifications for new messages'
+                        : 'Notifications are disabled',
+                  ),
+                  secondary: Icon(
+                    notif.enabled
+                        ? CupertinoIcons.bell_fill
+                        : CupertinoIcons.bell_slash,
+                  ),
+                  value: notif.enabled,
+                  onChanged: (value) async {
+                    await notif.setEnabled(value);
+                    setInnerState(() {});
                   },
                 );
               },
