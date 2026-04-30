@@ -93,9 +93,7 @@ class AgentCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isActive
-                          ? Colors.white
-                          : (isDark ? Colors.white : Colors.black87),
+                      color: textOnBg(color),
                     ),
                   ),
                   // Last message preview + unread
@@ -120,10 +118,8 @@ class AgentCard extends StatelessWidget {
                             fontWeight:
                                 hasUnread ? FontWeight.w600 : FontWeight.normal,
                             color: hasUnread
-                                ? (isActive
-                                    ? Colors.white
-                                    : (isDark ? Colors.white : Colors.black87))
-                                : (isDark ? Colors.white38 : Colors.black45),
+                                ? textOnBg(color)
+                                : textOnBg(color).withValues(alpha: 0.5),
                           ),
                         ),
                       );
@@ -140,23 +136,19 @@ class AgentCard extends StatelessWidget {
                         statusLabel,
                         style: TextStyle(
                           fontSize: 10,
-                          color: isActive
-                              ? Colors.white70
-                              : (isDark ? Colors.white54 : Colors.black54),
+                          color: textOnBg(color).withValues(alpha: 0.7),
                         ),
                       ),
                       if (profile.online) ...[
                         const SizedBox(width: 8),
                         Icon(CupertinoIcons.list_bullet, size: 10,
-                            color: isActive ? Colors.white54 : Colors.grey),
+                            color: textOnBg(color).withValues(alpha: 0.55)),
                         const SizedBox(width: 2),
                         Text(
                           '${profile.tasksQueue}',
                           style: TextStyle(
                             fontSize: 10,
-                            color: isActive
-                                ? Colors.white54
-                                : (isDark ? Colors.white38 : Colors.black38),
+                            color: textOnBg(color).withValues(alpha: 0.55),
                           ),
                         ),
                       ],
@@ -261,9 +253,7 @@ class AgentCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: isActive
-                          ? Colors.white
-                          : (isDark ? Colors.white : Colors.black87),
+                      color: textOnBg(color),
                     ),
                   ),
                   // Last message preview (compact)
@@ -281,9 +271,7 @@ class AgentCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.w600,
-                            color: isActive
-                                ? Colors.white
-                                : (isDark ? Colors.white : Colors.black87),
+                            color: textOnBg(color),
                           ),
                         ),
                       );
@@ -300,9 +288,7 @@ class AgentCard extends StatelessWidget {
                         statusLabel,
                         style: TextStyle(
                           fontSize: 9,
-                          color: isActive
-                              ? Colors.white70
-                              : (isDark ? Colors.white54 : Colors.black54),
+                          color: textOnBg(color).withValues(alpha: 0.7),
                         ),
                       ),
                     ],

@@ -13,3 +13,10 @@ Color avatarColor(String name) {
   final hue = (hash % 360).toDouble();
   return HSLColor.fromAHSL(1.0, hue, 0.75, 0.65).toColor();
 }
+
+/// Returns a readable text color for a given background.
+/// White on dark backgrounds (luminance < 0.5), black87 on light ones.
+/// Consistent algorithm — not affected by isActive or theme.
+Color textOnBg(Color bg) {
+  return bg.computeLuminance() < 0.5 ? Colors.white : Colors.black87;
+}
