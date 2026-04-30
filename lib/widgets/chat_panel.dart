@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
+import '../models/chat_message.dart';
 import '../providers/chat_provider.dart';
 import 'chat_bubble.dart';
 import 'thinking_indicator.dart';
@@ -39,6 +40,12 @@ class _ChatPanelState extends State<ChatPanel> {
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
 
+  // Search
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final List<_SearchResult> _searchResults = [];
+
   // Input history for Up/Down arrow navigation
   int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
   String _currentDraft = ''; // saved current input when navigating history
@@ -53,6 +60,7 @@ class _ChatPanelState extends State<ChatPanel> {
     });
     _scrollController.addListener(_onScroll);
     _inputFocus.onKeyEvent = _onKeyEvent;
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _restoreDraft() {
@@ -92,6 +100,7 @@ class _ChatPanelState extends State<ChatPanel> {
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocus.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -180,6 +189,59 @@ class _ChatPanelState extends State<ChatPanel> {
         });
       }
     }
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _searchController.clear();
+        _searchQuery = '';
+        _searchResults.clear();
+      } else {
+        _searchController.text = _searchQuery;
+        _onSearchChanged();
+      }
+    });
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query == _searchQuery) return;
+    _searchQuery = query;
+    _performSearch(query);
+  }
+
+  void _performSearch(String query) {
+    _searchResults.clear();
+    if (query.isEmpty) {
+      setState(() {});
+      return;
+    }
+    final msgs = context.read<ChatProvider>().messages;
+    for (int i = 0; i < msgs.length; i++) {
+      if (msgs[i].content.toLowerCase().contains(query)) {
+        _searchResults.add(_SearchResult(originalIndex: i, message: msgs[i]));
+      }
+    }
+    setState(() {});
+  }
+
+  void _scrollToMessage(int originalIndex) {
+    if (!_scrollController.hasClients) return;
+    final msgs = context.read<ChatProvider>().messages;
+    if (msgs.isEmpty) return;
+    // In reverse ListView: pixel 0 = bottom (newest), maxScrollExtent = top (oldest)
+    // oldest (index 0) → maxScrollExtent, newest (index N-1) → 0
+    final ratio = originalIndex / (msgs.length - 1).clamp(1, msgs.length);
+    final targetOffset =
+        _scrollController.position.maxScrollExtent * (1.0 - ratio);
+    _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    showToast(context, '已定位到第 ${originalIndex + 1} 条');
   }
 
   /// Scroll to bottom (pixel 0 in reverse mode).
@@ -332,8 +394,67 @@ class _ChatPanelState extends State<ChatPanel> {
 
     return Column(
       children: [
+        // Search header bar — replaces profile header when searching
+        if (widget.showHeader && _isSearching)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? AppConstants.darkSurface : Colors.white,
+              border: Border(
+                bottom: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(CupertinoIcons.arrow_left, size: 20,
+                      color: isDark ? Colors.white70 : Colors.black54),
+                  onPressed: _toggleSearch,
+                  tooltip: 'Close search',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: '搜索所有消息...',
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.white38 : Colors.black38,
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                if (_searchQuery.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(CupertinoIcons.clear_circled_solid, size: 18,
+                          color: isDark ? Colors.white54 : Colors.black45),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
         // Profile header bar
-        if (widget.showHeader)
+        if (widget.showHeader && !_isSearching)
           Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
@@ -385,9 +506,105 @@ class _ChatPanelState extends State<ChatPanel> {
                   ),
                 ],
               ),
+              const Spacer(),
+              GestureDetector(
+                onTap: _toggleSearch,
+                child: Tooltip(
+                  message: '搜索消息',
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(CupertinoIcons.search, size: 16,
+                        color: isDark ? Colors.white54 : Colors.black45),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+
+        // Search results overlay — scrollable list of matches
+        if (_isSearching && _searchQuery.isNotEmpty && _searchResults.isNotEmpty)
+          Container(
+            constraints: BoxConstraints(
+              maxHeight: 5 * 44.0, // 5 rows at ~44px each
+            ),
+            color: isDark ? AppConstants.darkSurface : Colors.white,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: _searchResults.length,
+              itemBuilder: (context, index) {
+                final result = _searchResults[index];
+                final roleLabel = result.message.isUser ? '你' : 'AI';
+                final snippet = result.message.content;
+                // Find the match position for highlighting
+                final lower = snippet.toLowerCase();
+                final matchIdx = lower.indexOf(_searchQuery);
+                final preview = snippet.length > 80
+                    ? '...${snippet.substring(matchIdx - 20 < 0 ? 0 : matchIdx - 20, (matchIdx + _searchQuery.length + 40).clamp(0, snippet.length))}...'
+                    : snippet;
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      _scrollToMessage(result.originalIndex);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: result.message.isUser
+                                  ? AppConstants.primaryBlue.withValues(alpha: 0.2)
+                                  : color.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              roleLabel,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: result.message.isUser
+                                    ? AppConstants.primaryBlue
+                                    : color,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _HighlightedText(
+                              text: preview,
+                              query: _searchQuery,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
+                              highlightStyle: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.amber.shade200 : Colors.orange.shade800,
+                                backgroundColor: isDark
+                                    ? Colors.amber.withValues(alpha: 0.2)
+                                    : Colors.orange.withValues(alpha: 0.15),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
 
         // Messages + thinking — reverse ListView grows from bottom
         Expanded(
@@ -776,6 +993,60 @@ class _ChatPanelState extends State<ChatPanel> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A search result match — holds the original message index and the message.
+class _SearchResult {
+  final int originalIndex;
+  final ChatMessage message;
+  const _SearchResult({required this.originalIndex, required this.message});
+}
+
+/// A text widget that highlights occurrences of [query] within [text].
+class _HighlightedText extends StatelessWidget {
+  final String text;
+  final String query;
+  final TextStyle style;
+  final TextStyle highlightStyle;
+
+  const _HighlightedText({
+    required this.text,
+    required this.query,
+    required this.style,
+    required this.highlightStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (query.isEmpty) return Text(text, style: style, maxLines: 2, overflow: TextOverflow.ellipsis);
+
+    final lower = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    final spans = <TextSpan>[];
+    int start = 0;
+
+    while (true) {
+      final idx = lower.indexOf(lowerQuery, start);
+      if (idx < 0) break;
+      if (idx > start) {
+        spans.add(TextSpan(text: text.substring(start, idx), style: style));
+      }
+      spans.add(TextSpan(
+        text: text.substring(idx, idx + query.length),
+        style: highlightStyle,
+      ));
+      start = idx + query.length;
+    }
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return RichText(
+      text: TextSpan(children: spans, style: style),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
