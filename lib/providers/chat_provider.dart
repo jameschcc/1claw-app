@@ -728,11 +728,11 @@ class ChatProvider extends ChangeNotifier {
       return current + incoming.substring(overlap);
     }
 
-    final currentLast = current.substring(current.length - 1);
-    final incomingFirst = incoming.substring(0, 1);
-    final needsSpace =
-        _isWordLike(currentLast) && _isWordLike(incomingFirst);
-    return needsSpace ? '$current $incoming' : '$current$incoming';
+    // No overlap — just concatenate directly without inserting spaces.
+    // Streaming chunks from LLM providers are self-contained fragments;
+    // any space between words is already part of the chunks. Inserting
+    // extra spaces breaks CJK text and other scripts.
+    return '$current$incoming';
   }
 
   int _reasoningOverlapLength(String current, String incoming) {
@@ -746,10 +746,6 @@ class ChatProvider extends ChangeNotifier {
       }
     }
     return 0;
-  }
-
-  bool _isWordLike(String value) {
-    return RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(value);
   }
 
   List<Map<String, String>>? _buildBootstrapHistory(
