@@ -530,28 +530,75 @@ class _ChatPanelState extends State<ChatPanel> {
           ), // Container background
         ), // Expanded
 
-        // Reply banner
+        // Reply banner — top area shows quoted message with gray left bar + darker bg
         Consumer<ChatProvider>(
           builder: (context, chatProvider, _) {
             final target = chatProvider.replyTarget;
             if (target == null) return const SizedBox.shrink();
+            final isAgent = target.isAgent;
             return Container(
-              color: color.withValues(alpha: 0.1),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              color: isDark ? Colors.black26 : Colors.grey.shade100,
+              padding: const EdgeInsets.only(left: 12, right: 12, top: 10, bottom: 6),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(CupertinoIcons.arrowshape_turn_up_left, size: 16, color: color),
-                  const SizedBox(width: 8),
+                  // 8px gray left border
+                  Container(
+                    width: 3,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white38 : Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'Replying to: ${target.content.length > 40 ? "${target.content.substring(0, 40)}..." : target.content}',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: color),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isAgent
+                                  ? CupertinoIcons.person
+                                  : CupertinoIcons.person_alt_circle,
+                              size: 12,
+                              color: isDark ? Colors.white54 : Colors.black45,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isAgent ? 'Agent' : 'You',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white54 : Colors.black45,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          target.content,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   GestureDetector(
                     onTap: () => chatProvider.clearReplyTarget(),
-                    child: Icon(CupertinoIcons.clear, size: 16, color: color),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(CupertinoIcons.clear_circled_solid,
+                          size: 18,
+                          color: isDark ? Colors.white38 : Colors.black38),
+                    ),
                   ),
                 ],
               ),

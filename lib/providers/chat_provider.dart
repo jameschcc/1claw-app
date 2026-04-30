@@ -144,6 +144,18 @@ class ChatProvider extends ChangeNotifier {
     final profileId = _currentProfileId;
     final conversation = _getConversation();
     final sessionId = _sessionIdForOutgoingMessage(profileId);
+
+    // If replying to a message, prepend the original content as blockquote
+    if (_replyTarget != null) {
+      final quoted = _replyTarget!.content;
+      // Use markdown blockquote format, keeping it under reasonable length
+      final quoteLines = quoted.split('\n');
+      final quoteBlock = quoteLines.length > 5
+          ? '> ${quoteLines.take(5).join('\n> ')}\n> ...'
+          : quoteLines.map((l) => '> $l').join('\n');
+      content = '$quoteBlock\n\n$content';
+    }
+
     final bootstrapHistory = _buildBootstrapHistory(conversation);
 
     _replyTarget = null;
