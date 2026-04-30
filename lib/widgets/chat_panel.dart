@@ -105,7 +105,7 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   void _saveDraft() {
-    if (mounted && context.mounted) {
+    if (mounted) {
       context
           .read<ChatProvider>()
           .saveDraft(widget.profile.id, _inputController.text);
