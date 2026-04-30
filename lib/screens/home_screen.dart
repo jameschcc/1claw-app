@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
+import '../providers/chat_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../widgets/agent_card.dart';
 import '../widgets/connection_indicator.dart';
@@ -25,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen>
   bool _dialogShown = false;
   late bool _isWide;
   Timer? _resizeTimer;
+  final TextEditingController _filterController = TextEditingController();
+  String _filterQuery = '';
 
   @override
   void initState() {
@@ -43,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _resizeTimer?.cancel();
+    _filterController.dispose();
     super.dispose();
   }
 
@@ -310,23 +314,83 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     // User list
                     Expanded(
-                      child: ListView.builder(
-                        padding: EdgeInsets.zero,
-                        itemCount: profiles.length,
-                        itemBuilder: (context, index) {
-                          final profile = profiles[index];
-                          return UserListItem(
-                            profile: profile,
-                            isSelected: profile.id == activeId,
-                            onTap: () {
-                              provider.setActiveProfile(profile.id);
-                            },
-                            onTogglePin: () =>
-                                provider.togglePin(profile.id),
-                          );
-                        },
-                      ),
+                      child: () {
+                        final filtered = _filterQuery.isEmpty
+                            ? profiles
+                            : _filterProfiles(
+                                profiles, _filterQuery, context.read<ChatProvider>());
+                        return ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final profile = filtered[index];
+                            return UserListItem(
+                              profile: profile,
+                              isSelected: profile.id == activeId,
+                              onTap: () {
+                                provider.setActiveProfile(profile.id);
+                              },
+                              onTogglePin: () =>
+                                  provider.togglePin(profile.id),
+                            );
+                          },
+                        );
+                      }(),
                     ),
+                    // ── Filter bar (only when >5 profiles) ──
+                    if (profiles.length > 5)
+                      Container(
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF282828) : const Color(0xFFF0F0F0),
+                          border: Border(
+                            top: BorderSide(
+                              color: isDark ? Colors.white12 : Colors.black12,
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _filterController,
+                                onChanged: (v) => setState(() => _filterQuery = v),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Search agents...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? Colors.white30 : Colors.black38,
+                                  ),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                              ),
+                            ),
+                            if (_filterQuery.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _filterController.clear();
+                                  setState(() => _filterQuery = '');
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: Icon(
+                                    CupertinoIcons.clear_circled_solid,
+                                    size: 16,
+                                    color: isDark ? Colors.white38 : Colors.black38,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     // Bottom bar: connection only (gear moved to toolbar)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -516,6 +580,36 @@ class _HomeScreenState extends State<HomeScreen>
         );
       },
     );
+  }
+
+  // ─── Sidebar profile filter ────────────────────────────────────
+
+  /// Filter profiles by name (highest priority), then by chat history content.
+  List<AgentProfile> _filterProfiles(
+    List<AgentProfile> profiles,
+    String query,
+    ChatProvider chatProvider,
+  ) {
+    if (query.isEmpty) return profiles;
+    final q = query.toLowerCase();
+    final nameMatches = <AgentProfile>[];
+    final historyMatches = <AgentProfile>[];
+    for (final p in profiles) {
+      if (p.name.toLowerCase().contains(q)) {
+        nameMatches.add(p);
+      } else if (_matchesAnyMessage(chatProvider, p.id, q)) {
+        historyMatches.add(p);
+      }
+    }
+    return [...nameMatches, ...historyMatches];
+  }
+
+  bool _matchesAnyMessage(ChatProvider chatProvider, String profileId, String query) {
+    final messages = chatProvider.getMessagesForProfile(profileId);
+    for (final m in messages) {
+      if (m.content.toLowerCase().contains(query)) return true;
+    }
+    return false;
   }
 
   // ─── Shared widgets ────────────────────────────────────────────

@@ -49,6 +49,10 @@ class ChatProvider extends ChangeNotifier {
   /// Number of pending messages.
   int get pendingCount => _pendingQueue.length;
 
+  /// Get chat messages for a specific profile (public access).
+  List<ChatMessage> getMessagesForProfile(String profileId) =>
+      _getConversationFor(profileId);
+
   /// Queue a message to be auto-sent when the current agent response finishes.
   void enqueueMessage(String content) {
     final trimmed = content.trim();
