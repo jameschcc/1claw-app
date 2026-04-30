@@ -349,7 +349,6 @@ class _ChatBubbleState extends State<ChatBubble> {
                                       color: isUser
                                           ? Colors.white70
                                           : (isDark ? Colors.blue.shade200 : Colors.blue),
-                                      decoration: TextDecoration.underline,
                                     ),
                                     blockquoteDecoration: BoxDecoration(
                                       border: Border(
