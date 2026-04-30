@@ -52,6 +52,29 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  /// Navigate to settings with a popup animation that originates
+  /// from where the gear icon is (bottom-left in landscape, top-right in portrait).
+  void _openSettings(BuildContext context) {
+    Navigator.of(context).push(PageRouteBuilder(
+      pageBuilder:
+          (context, animation, secondaryAnimation) => const SettingsScreen(),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final alignment =
+            _isWide ? Alignment.bottomLeft : Alignment.topRight;
+        return ScaleTransition(
+          alignment: alignment,
+          scale: animation.drive(CurveTween(curve: Curves.easeOutCubic)),
+          child: FadeTransition(
+            opacity: animation.drive(CurveTween(curve: Curves.easeOut)),
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+    ));
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -166,9 +189,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           IconButton(
             icon: const Icon(CupertinoIcons.gear),
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            onPressed: () => _openSettings(context),
           ),
         ],
       ),
@@ -265,16 +286,22 @@ class _HomeScreenState extends State<HomeScreen>
                         opacity: 0.9,
                         child: RotationTransition(
                           turns: _refreshSpinCtrl,
-                          child: IconButton(
-                            icon: const Icon(CupertinoIcons.refresh,
-                                size: 24),
-                            tooltip: 'Refresh profiles from server',
-                            onPressed: p.isConnected
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: p.isConnected
                                 ? () {
                                     _refreshSpinCtrl.forward(from: 0);
                                     p.requestStatus();
                                   }
                                 : null,
+                            child: const SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Center(
+                                child: Icon(CupertinoIcons.refresh,
+                                    size: 22),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -284,17 +311,20 @@ class _HomeScreenState extends State<HomeScreen>
                       opacity: 0.9,
                       child: RotationTransition(
                         turns: _gearSpinCtrl,
-                        child: IconButton(
-                          icon: const Icon(CupertinoIcons.gear,
-                              size: 24),
-                          onPressed: () {
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
                             _gearSpinCtrl.forward(from: 0);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SettingsScreen()),
-                            );
+                            _openSettings(context);
                           },
+                          child: const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Icon(CupertinoIcons.gear,
+                                  size: 22),
+                            ),
+                          ),
                         ),
                       ),
                     ),
