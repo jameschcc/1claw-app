@@ -336,39 +336,29 @@ class _ChatBubbleState extends State<ChatBubble> {
                               ],
                             ],
                           ),
-                          // </> raw mode toggle — shown on hover for agent messages
+                          // </> raw mode toggle — Cupertino icon, shown on hover for agent messages
                           if (!widget.message.isUser && _isHovered)
                             Positioned(
-                              top: -10,
-                              right: -10,
+                              top: -8,
+                              right: -8,
                               child: GestureDetector(
                                 onTap: _toggleRawMode,
                                 child: Tooltip(
                                   message: _showRaw ? 'View rendered' : 'View raw markdown',
                                   child: Container(
-                                    padding: const EdgeInsets.all(4),
+                                    padding: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
                                       color: _showRaw
                                           ? (isDark ? Colors.blue.shade700 : Colors.blue.shade100)
-                                          : (isDark ? Colors.white12 : Colors.grey.shade200),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: _showRaw
-                                            ? Colors.blue
-                                            : (isDark ? Colors.white24 : Colors.grey.shade400),
-                                        width: 1,
-                                      ),
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: Text(
-                                      '</>',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        fontFamily: 'monospace',
-                                        color: _showRaw
-                                            ? Colors.blue
-                                            : (isDark ? Colors.white70 : Colors.grey.shade700),
-                                      ),
+                                    child: Icon(
+                                      CupertinoIcons.chevron_left_slash_chevron_right,
+                                      size: 14,
+                                      color: _showRaw
+                                          ? Colors.blue
+                                          : (isDark ? Colors.white54 : Colors.grey.shade500),
                                     ),
                                   ),
                                 ),
