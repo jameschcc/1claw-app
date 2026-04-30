@@ -16,8 +16,8 @@ class WebSocketService {
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
   Future<bool>? _connectFuture;
-  int _connectOperationId = 0;
-  int _connectFutureOperationId = 0;
+  int? _connectOperationId = 0;
+  int? _connectFutureOperationId = 0;
 
   String _serverUrl = 'ws://localhost:8080/ws';
   bool _connected = false;
@@ -75,6 +75,16 @@ class WebSocketService {
   bool get isConnected => _connected;
   String? get clientId => _clientId;
 
+  int get _currentConnectOperationId => _connectOperationId ?? 0;
+
+  int get _currentConnectFutureOperationId => _connectFutureOperationId ?? 0;
+
+  int _incrementConnectOperationId() {
+    final nextOperationId = _currentConnectOperationId + 1;
+    _connectOperationId = nextOperationId;
+    return nextOperationId;
+  }
+
   /// Update the server URL (takes effect on next connect).
   void setServerUrl(String url) {
     _serverUrl = url;
@@ -98,7 +108,7 @@ class WebSocketService {
   /// Resets reconnect attempt counters.
   Future<bool> reconnect() async {
     if (_disposed) return false;
-    _connectOperationId++;
+    _incrementConnectOperationId();
     _reconnectAttempt = 0;
     _needsManualReconnect = false;
     _reconnectTimer?.cancel();
@@ -113,12 +123,12 @@ class WebSocketService {
     if (_disposed || _connected) return false;
     if (_isConnecting &&
         _connectFuture != null &&
-        _connectFutureOperationId == _connectOperationId) {
+        _currentConnectFutureOperationId == _currentConnectOperationId) {
       // Another connect() is already in-flight for the same target state.
       return _connectFuture!;
     }
 
-    final operationId = ++_connectOperationId;
+    final operationId = _incrementConnectOperationId();
     final future = _connectInternal(operationId);
     _connectFutureOperationId = operationId;
     _connectFuture = future;
@@ -147,7 +157,7 @@ class WebSocketService {
     try {
       await channel.ready.timeout(const Duration(seconds: 5));
       if (_disposed ||
-          operationId != _connectOperationId ||
+          operationId != _currentConnectOperationId ||
           !identical(_channel, channel)) {
         await _closeChannel(channel: channel);
         return false;
@@ -194,19 +204,19 @@ class WebSocketService {
     } on TimeoutException {
       debugPrint('[ws] Connect timeout');
       await _closeChannel(channel: channel);
-      if (operationId == _connectOperationId) {
+      if (operationId == _currentConnectOperationId) {
         _handleDisconnect();
       }
       return false;
     } catch (e) {
       debugPrint('[ws] Connect error: $e');
       await _closeChannel(channel: channel);
-      if (operationId == _connectOperationId) {
+      if (operationId == _currentConnectOperationId) {
         _handleDisconnect();
       }
       return false;
     } finally {
-      if (_connectFutureOperationId == operationId) {
+      if (_currentConnectFutureOperationId == operationId) {
         _connectFuture = null;
         _isConnecting = false;
       }
@@ -215,7 +225,7 @@ class WebSocketService {
 
   /// Disconnect from the server.
   Future<void> disconnect() async {
-    _connectOperationId++;
+    _incrementConnectOperationId();
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _isConnecting = false;
