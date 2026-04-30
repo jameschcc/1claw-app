@@ -357,12 +357,13 @@ class _HomeScreenState extends State<HomeScreen>
                               child: TextField(
                                 controller: _filterController,
                                 onChanged: (v) => setState(() => _filterQuery = v),
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: isDark ? Colors.white70 : Colors.black87,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: 'Search agents...',
+                                  hintText: 'Filter Agent',
                                   hintStyle: TextStyle(
                                     fontSize: 13,
                                     color: isDark ? Colors.white30 : Colors.black38,
