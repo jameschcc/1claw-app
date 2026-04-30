@@ -204,8 +204,8 @@ class _ChatPanelState extends State<ChatPanel> {
       text = '$prepend $text';
     }
     if (text.isEmpty) return;
-    chatProvider.clearReplyTarget();
     chatProvider.sendMessage(text);
+    chatProvider.clearReplyTarget();
     chatProvider.saveDraft(widget.profile.id, '');
     _inputController.clear();
     // Push to input history

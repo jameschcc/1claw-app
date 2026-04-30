@@ -72,6 +72,79 @@ class _ChatBubbleState extends State<ChatBubble> {
     setState(() => _showRaw = !_showRaw);
   }
 
+  /// Build a visual "引用" label for messages that start with a blockquote.
+  /// Shows a small label + the quoted text with left border.
+  List<Widget> _buildQuoteLabel(bool isDark, bool isUser) {
+    final content = widget.message.content;
+    // Extract blockquote lines from the beginning
+    final lines = content.split('\n');
+    final quoteLines = <String>[];
+    int i = 0;
+    while (i < lines.length && lines[i].startsWith('> ')) {
+      quoteLines.add(lines[i].substring(2)); // strip "> " prefix
+      i++;
+    }
+
+    final quoteBg = isUser
+        ? Colors.white.withValues(alpha: 0.10)
+        : (isDark ? Colors.black.withValues(alpha: 0.12) : Colors.grey.shade100);
+    final quoteBorder = isUser
+        ? Colors.white38
+        : (isDark ? Colors.white24 : Colors.grey.shade400);
+    final quoteText = isUser
+        ? Colors.white70
+        : (isDark ? Colors.white54 : Colors.black54);
+
+    return [
+      // "引用" label
+      Row(
+        children: [
+          Icon(CupertinoIcons.arrowshape_turn_up_left,
+              size: 11,
+              color: isUser
+                  ? Colors.white54
+                  : (isDark ? Colors.white38 : Colors.black38)),
+          const SizedBox(width: 4),
+          Text(
+            '引用',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: isUser
+                  ? Colors.white54
+                  : (isDark ? Colors.white38 : Colors.black38),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      // Quoted text block with left border
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4, right: 4),
+        decoration: BoxDecoration(
+          color: quoteBg,
+          borderRadius: BorderRadius.circular(4),
+          border: Border(
+            left: BorderSide(width: 3, color: quoteBorder),
+          ),
+        ),
+        child: SelectableText(
+          quoteLines.join('\n'),
+          style: TextStyle(
+            fontSize: 12,
+            color: quoteText,
+            height: 1.4,
+          ),
+          maxLines: 5,
+        ),
+      ),
+      if (i < lines.length - 1 || (i < lines.length && lines[i].trim().isEmpty)) ...[
+        const SizedBox(height: 8),
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isUser = widget.message.isUser;
@@ -83,6 +156,19 @@ class _ChatBubbleState extends State<ChatBubble> {
         ? Colors.black87
         : Colors.white;
     final debugSessionLabel = _buildDebugSessionLabel(widget.message);
+    final hasQuote = widget.message.content.startsWith('> ');
+    final contentLines = widget.message.content.split('\n');
+    int quoteEnd = 0;
+    while (quoteEnd < contentLines.length && contentLines[quoteEnd].startsWith('> ')) {
+      quoteEnd++;
+    }
+    // Skip blank lines between quote and reply
+    while (quoteEnd < contentLines.length && contentLines[quoteEnd].trim().isEmpty) {
+      quoteEnd++;
+    }
+    final remainingContent = (hasQuote && quoteEnd < contentLines.length)
+        ? contentLines.skip(quoteEnd).join('\n').trim()
+        : widget.message.content;
 
     // Compute bubble background color
     final baseBubbleColor = widget.isReplyTarget
@@ -197,8 +283,11 @@ class _ChatBubbleState extends State<ChatBubble> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Show "引用" label if content has a quoted reference
+                              if (hasQuote && !_showRaw) ..._buildQuoteLabel(isDark, isUser),
                               if (_showRaw)
                                 SelectableText(
+                                  // In raw mode, show everything as-is
                                   widget.message.content,
                                   style: TextStyle(
                                     fontSize: 14,
@@ -210,7 +299,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                                 )
                               else
                                 MarkdownBody(
-                                  data: widget.message.content,
+                                  data: hasQuote ? remainingContent : widget.message.content,
                                   selectable: false,
                                   styleSheet: MarkdownStyleSheet(
                                     p: TextStyle(
