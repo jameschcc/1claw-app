@@ -121,7 +121,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       // Quoted text block with left border
       Container(
         width: double.infinity,
-        padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4, right: 4),
+        padding: const EdgeInsets.only(left: 10, top: 4, bottom: 2, right: 4),
         decoration: BoxDecoration(
           color: quoteBg,
           borderRadius: BorderRadius.circular(4),
@@ -134,13 +134,12 @@ class _ChatBubbleState extends State<ChatBubble> {
           style: TextStyle(
             fontSize: 12,
             color: quoteText,
-            height: 1.4,
+            height: 1.3,
           ),
-          maxLines: 5,
         ),
       ),
       if (i < lines.length - 1 || (i < lines.length && lines[i].trim().isEmpty)) ...[
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
       ],
     ];
   }
