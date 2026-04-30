@@ -36,6 +36,7 @@ class _ChatPanelState extends State<ChatPanel> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
+  late ChatProvider _chatProvider;
   bool _autoScroll = true;
   bool _initialScrollDone = false;
   bool _showScrollToBottom = false;
@@ -56,6 +57,7 @@ class _ChatPanelState extends State<ChatPanel> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _switchToProfile(widget.profile.id);
       _restoreDraft();
     });
@@ -63,8 +65,14 @@ class _ChatPanelState extends State<ChatPanel> {
     _inputFocus.onKeyEvent = _onKeyEvent;
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _chatProvider = context.read<ChatProvider>();
+  }
+
   void _restoreDraft() {
-    final draft = context.read<ChatProvider>().getDraft(widget.profile.id);
+    final draft = _chatProvider.getDraft(widget.profile.id);
     if (draft.isNotEmpty) {
       _inputController.text = draft;
       // Move cursor to end
@@ -79,14 +87,13 @@ class _ChatPanelState extends State<ChatPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.profile.id != widget.profile.id) {
       // Save draft for the old profile before switching
-      context
-          .read<ChatProvider>()
-          .saveDraft(oldWidget.profile.id, _inputController.text);
+      _chatProvider.saveDraft(oldWidget.profile.id, _inputController.text);
       _initialScrollDone = false;
       _autoScroll = true;
       _showScrollToBottom = false;
       _inputController.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         _switchToProfile(widget.profile.id);
         _restoreDraft();
         _inputFocus.requestFocus();
@@ -105,25 +112,20 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   void _saveDraft() {
-    if (mounted) {
-      context
-          .read<ChatProvider>()
-          .saveDraft(widget.profile.id, _inputController.text);
-    }
+    _chatProvider.saveDraft(widget.profile.id, _inputController.text);
   }
 
   void _switchToProfile(String profileId) {
-    context.read<ChatProvider>().switchProfile(profileId);
+    _chatProvider.switchProfile(profileId);
     _requestHistory();
-    final provider = context.read<ChatProvider>();
-    _inputHistory = List<String>.from(provider.inputHistoryForProfile(profileId));
+    _inputHistory = List<String>.from(_chatProvider.inputHistoryForProfile(profileId));
     _historyIndex = -1;
     _currentDraft = '';
     // reverse:true — ListView naturally starts at bottom, no scroll needed
   }
 
   void _requestHistory({bool force = false}) {
-    unawaited(context.read<ChatProvider>().requestHistory(force: force));
+    unawaited(_chatProvider.requestHistory(force: force));
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {

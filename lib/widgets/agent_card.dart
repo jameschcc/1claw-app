@@ -82,7 +82,7 @@ class AgentCard extends StatelessWidget {
                       child: Icon(CupertinoIcons.star, size: 12, color: Colors.amber),
                     ),
                   // Emoji
-                  Text(profile.emoji, style: const TextStyle(fontSize: 24)),
+                  // Text(profile.emoji, style: const TextStyle(fontSize: 24)),
                   const SizedBox(height: 6),
                   // Name
                   Text(
@@ -112,7 +112,7 @@ class AgentCard extends StatelessWidget {
                           lastMsg.isNotEmpty ? lastMsg : '(new messages)',
                           textAlign: TextAlign.center,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: TextOverflow.clip,
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight:
@@ -242,7 +242,7 @@ class AgentCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Emoji
-                  Text(profile.emoji, style: const TextStyle(fontSize: 18)),
+                  // Text(profile.emoji, style: const TextStyle(fontSize: 18)),
                   const SizedBox(height: 4),
                   // Name
                   Text(
