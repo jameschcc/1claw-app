@@ -319,7 +319,7 @@ class _FakeWebSocketService extends WebSocketService {
   }
 
   @override
-  void sendChat(
+  bool sendChat(
     String profileId,
     String content, {
     String? messageId,
@@ -331,6 +331,7 @@ class _FakeWebSocketService extends WebSocketService {
     lastMessageId = messageId;
     lastSessionId = sessionId;
     lastHistory = history;
+    return true;
   }
 
   @override
