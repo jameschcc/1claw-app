@@ -22,18 +22,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   bool _dialogShown = false;
   late bool _isWide;
   Timer? _resizeTimer;
   final TextEditingController _filterController = TextEditingController();
   String _filterQuery = '';
+  late AnimationController _refreshSpinCtrl;
+  late AnimationController _gearSpinCtrl;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _dialogShown = false;
+    _refreshSpinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..addListener(() => setState(() {}));
+    _gearSpinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..addListener(() => setState(() {}));
     // Default to portrait; corrected on first post-frame
     _isWide = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -46,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _resizeTimer?.cancel();
+    _refreshSpinCtrl.dispose();
+    _gearSpinCtrl.dispose();
     _filterController.dispose();
     super.dispose();
   }
@@ -251,25 +263,38 @@ class _HomeScreenState extends State<HomeScreen>
                     Consumer<ProfilesProvider>(
                       builder: (_, p, _) => Opacity(
                         opacity: 0.9,
-                        child: IconButton(
-                          icon: const Icon(CupertinoIcons.refresh,
-                              size: 24),
-                          tooltip: 'Refresh profiles from server',
-                          onPressed:
-                              p.isConnected ? () => p.requestStatus() : null,
+                        child: RotationTransition(
+                          turns: _refreshSpinCtrl,
+                          child: IconButton(
+                            icon: const Icon(CupertinoIcons.refresh,
+                                size: 24),
+                            tooltip: 'Refresh profiles from server',
+                            onPressed: p.isConnected
+                                ? () {
+                                    _refreshSpinCtrl.forward(from: 0);
+                                    p.requestStatus();
+                                  }
+                                : null,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Opacity(
                       opacity: 0.9,
-                      child: IconButton(
-                        icon: const Icon(CupertinoIcons.gear,
-                            size: 24),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const SettingsScreen()),
+                      child: RotationTransition(
+                        turns: _gearSpinCtrl,
+                        child: IconButton(
+                          icon: const Icon(CupertinoIcons.gear,
+                              size: 24),
+                          onPressed: () {
+                            _gearSpinCtrl.forward(from: 0);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SettingsScreen()),
+                            );
+                          },
                         ),
                       ),
                     ),
