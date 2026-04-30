@@ -405,7 +405,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                                 ),
                                 textAlign: TextAlign.end,
                               ),
-                              if (debugSessionLabel != null) ...[
+                              if (_isHovered && debugSessionLabel != null) ...[
                                 const SizedBox(height: 2),
                                 Align(
                                   alignment: Alignment.centerRight,
@@ -567,17 +567,17 @@ class _ChatBubbleState extends State<ChatBubble> {
         requestSessionId != null && requestSessionId.isNotEmpty;
 
     if (!hasSessionId && !hasRequestSessionId) {
-      return 'sid: -';
+      return 'SID: -';
     }
 
     if (message.isAgent) {
-      return 'sid: ${hasSessionId ? sessionId : '-'}\nreq: ${hasRequestSessionId ? requestSessionId : '-'}';
+      return 'SID: ${hasSessionId ? sessionId : '-'}\nREQ: ${hasRequestSessionId ? requestSessionId : '-'}';
     }
 
     if (hasRequestSessionId && requestSessionId != sessionId) {
-      return 'sid: ${hasSessionId ? sessionId : '-'}\nreq: $requestSessionId';
+      return 'SID: ${hasSessionId ? sessionId : '-'}\nREQ: $requestSessionId';
     }
 
-    return 'sid: ${hasSessionId ? sessionId : '-'}';
+    return 'SID: ${hasSessionId ? sessionId : '-'}';
   }
 }
