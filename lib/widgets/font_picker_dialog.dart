@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:posh_flutter_components/font/posh_font_service.dart';
 
 /// Dialog for selecting a UI font from the system's available fonts.
@@ -34,7 +35,9 @@ class _FontPickerDialogState extends State<FontPickerDialog> {
 
   Future<void> _loadFonts() async {
     try {
-      final list = await PoshFontService.getAvailableFonts();
+      final list = kIsWeb
+          ? <String>['System']
+          : await PoshFontService.getAvailableFonts();
       // Ensure 'System' is always listed first as default
       if (!list.contains('System')) {
         list.insert(0, 'System');

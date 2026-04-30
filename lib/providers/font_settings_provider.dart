@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:posh_flutter_components/font/posh_font_service.dart';
 
@@ -21,8 +21,11 @@ class FontSettingsProvider extends ChangeNotifier {
     if (stored != null && stored.isNotEmpty) {
       _uiFont = stored;
       // Load the saved font into Flutter's font engine
-      if (_uiFont != 'System') {
+      if (!kIsWeb && _uiFont != 'System') {
         await PoshFontService.loadFont(_uiFont);
+      } else if (kIsWeb && _uiFont != 'System') {
+        _uiFont = 'System';
+        await prefs.setString(_uiFontKey, _uiFont);
       }
       notifyListeners();
     }
@@ -33,8 +36,11 @@ class FontSettingsProvider extends ChangeNotifier {
     _uiFont = font;
     notifyListeners();
 
-    if (font != 'System') {
+    if (!kIsWeb && font != 'System') {
       await PoshFontService.loadFont(font);
+    } else if (kIsWeb && font != 'System') {
+      _uiFont = 'System';
+      notifyListeners();
     }
 
     final prefs = await SharedPreferences.getInstance();

@@ -30,6 +30,8 @@ class NotificationService {
   bool _enabled = true;
   bool get enabled => _enabled;
 
+  bool get _isWeb => kIsWeb;
+
   bool get _isLinux => !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
 
   bool get _isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
@@ -51,6 +53,11 @@ class NotificationService {
   /// Call once in `main()` before `runApp()`.
   Future<void> initialize() async {
     await loadEnabled();
+
+    if (_isWeb) {
+      debugPrint('[notif] Notifications are not configured for web');
+      return;
+    }
 
     // --- flutter_local_notifications setup ---
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -92,7 +99,7 @@ class NotificationService {
     required String profileName,
     required String content,
   }) async {
-    if (!_enabled) return;
+    if (!_enabled || _isWeb) return;
 
     // Clean up: strip markdown/newlines, truncate to ~120 chars
     final sanitized = content
