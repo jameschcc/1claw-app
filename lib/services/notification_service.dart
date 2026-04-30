@@ -30,6 +30,10 @@ class NotificationService {
   bool _enabled = true;
   bool get enabled => _enabled;
 
+  bool get _isLinux => !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+
+  bool get _isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
   /// Load the persisted enabled/disabled state.
   Future<void> loadEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -100,14 +104,14 @@ class NotificationService {
         : sanitized;
 
     // Platform-specific notification display
-    if (Platform.isLinux) {
+    if (_isLinux) {
       await _linuxNotifySend(profileName, preview);
     } else {
       await _pluginNotify(profileName, preview);
     }
 
     // Windows taskbar flash (best-effort)
-    if (Platform.isWindows) {
+    if (_isWindows) {
       await _flashTaskbar();
     }
   }
