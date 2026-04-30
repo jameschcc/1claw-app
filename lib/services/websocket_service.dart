@@ -15,6 +15,9 @@ class WebSocketService {
   StreamSubscription? _channelSubscription;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
+  Future<bool>? _connectFuture;
+  int _connectOperationId = 0;
+  int _connectFutureOperationId = 0;
 
   String _serverUrl = 'ws://localhost:8080/ws';
   bool _connected = false;
@@ -41,8 +44,20 @@ class WebSocketService {
   /// Callback when connection state changes.
   void Function(bool connected)? onConnectionChange;
 
+  final List<void Function(bool connected)> _connectionListeners = [];
+
   /// Message listeners (multiple, not overwritten).
   final List<void Function(WsMessage)> _messageListeners = [];
+
+  /// Register a listener for connection state changes.
+  void addConnectionListener(void Function(bool connected) listener) {
+    _connectionListeners.add(listener);
+  }
+
+  /// Remove a previously registered connection state listener.
+  void removeConnectionListener(void Function(bool connected) listener) {
+    _connectionListeners.remove(listener);
+  }
 
   /// Register a listener for incoming messages.
   void addMessageListener(void Function(WsMessage) listener) {
@@ -83,6 +98,7 @@ class WebSocketService {
   /// Resets reconnect attempt counters.
   Future<bool> reconnect() async {
     if (_disposed) return false;
+    _connectOperationId++;
     _reconnectAttempt = 0;
     _needsManualReconnect = false;
     _reconnectTimer?.cancel();
@@ -95,10 +111,22 @@ class WebSocketService {
   /// Returns true if connected successfully, false otherwise.
   Future<bool> connect() async {
     if (_disposed || _connected) return false;
-    if (_isConnecting) {
-      // Another connect() is in-flight — let the caller know we can't start a new one
-      return false;
+    if (_isConnecting &&
+        _connectFuture != null &&
+        _connectFutureOperationId == _connectOperationId) {
+      // Another connect() is already in-flight for the same target state.
+      return _connectFuture!;
     }
+
+    final operationId = ++_connectOperationId;
+    final future = _connectInternal(operationId);
+    _connectFutureOperationId = operationId;
+    _connectFuture = future;
+    return future;
+  }
+
+  Future<bool> _connectInternal(int operationId) async {
+    if (_disposed || _connected) return false;
 
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -118,14 +146,14 @@ class WebSocketService {
 
     try {
       await channel.ready.timeout(const Duration(seconds: 5));
-      if (_disposed || !identical(_channel, channel)) {
+      if (_disposed ||
+          operationId != _connectOperationId ||
+          !identical(_channel, channel)) {
         await _closeChannel(channel: channel);
-        _isConnecting = false;
         return false;
       }
 
       _setConnected(true);
-      _isConnecting = false;
       _reconnectAttempt = 0;
       _needsManualReconnect = false;
       debugPrint('[ws] Connected as $clientId to $_serverUrl');
@@ -166,20 +194,28 @@ class WebSocketService {
     } on TimeoutException {
       debugPrint('[ws] Connect timeout');
       await _closeChannel(channel: channel);
-      _handleDisconnect();
+      if (operationId == _connectOperationId) {
+        _handleDisconnect();
+      }
       return false;
     } catch (e) {
       debugPrint('[ws] Connect error: $e');
       await _closeChannel(channel: channel);
-      _handleDisconnect();
+      if (operationId == _connectOperationId) {
+        _handleDisconnect();
+      }
       return false;
     } finally {
-      _isConnecting = false;
+      if (_connectFutureOperationId == operationId) {
+        _connectFuture = null;
+        _isConnecting = false;
+      }
     }
   }
 
   /// Disconnect from the server.
   Future<void> disconnect() async {
+    _connectOperationId++;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _isConnecting = false;
@@ -195,6 +231,7 @@ class WebSocketService {
       final subscription = _channelSubscription;
       _channelSubscription = null;
       _channel = null;
+      await subscription?.cancel();
     }
 
     try {
@@ -392,5 +429,8 @@ class WebSocketService {
     if (_connected == value) return;
     _connected = value;
     onConnectionChange?.call(value);
+    for (final listener in List<void Function(bool)>.from(_connectionListeners)) {
+      listener(value);
+    }
   }
 }

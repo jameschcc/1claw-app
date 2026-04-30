@@ -22,7 +22,7 @@ class ProfilesProvider extends ChangeNotifier {
       }
       _notifySafely();
     };
-    _wsService.onConnectionChange = _connectionListener;
+    _wsService.addConnectionListener(_connectionListener);
     _wsService.onNeedsManualReconnect = () {
       _notifySafely();
     };
@@ -41,7 +41,6 @@ class ProfilesProvider extends ChangeNotifier {
     _wsService.addMessageListener(_messageListener);
   }
 
-  /// Profiles sorted: pinned first, then rest.
   List<AgentProfile> get profiles {
     final pinned = <AgentProfile>[];
     final unpinned = <AgentProfile>[];
@@ -187,9 +186,7 @@ class ProfilesProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    if (identical(_wsService.onConnectionChange, _connectionListener)) {
-      _wsService.onConnectionChange = null;
-    }
+    _wsService.removeConnectionListener(_connectionListener);
     _wsService.removeMessageListener(_messageListener);
     super.dispose();
   }

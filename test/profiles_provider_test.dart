@@ -17,7 +17,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       provider.dispose();
 
-      expect(() => wsService.onConnectionChange?.call(true), returnsNormally);
+      expect(() => wsService.emitConnectionChange(true), returnsNormally);
       expect(
         () => wsService.emit(
           WsMessage(
@@ -76,6 +76,17 @@ void main() {
 
 class _FakeWebSocketService extends WebSocketService {
   final List<void Function(WsMessage)> _listeners = [];
+  final List<void Function(bool connected)> _connectionListeners = [];
+
+  @override
+  void addConnectionListener(void Function(bool connected) listener) {
+    _connectionListeners.add(listener);
+  }
+
+  @override
+  void removeConnectionListener(void Function(bool connected) listener) {
+    _connectionListeners.remove(listener);
+  }
 
   @override
   void addMessageListener(void Function(WsMessage) listener) {
@@ -90,6 +101,12 @@ class _FakeWebSocketService extends WebSocketService {
   void emit(WsMessage message) {
     for (final listener in List<void Function(WsMessage)>.from(_listeners)) {
       listener(message);
+    }
+  }
+
+  void emitConnectionChange(bool connected) {
+    for (final listener in List<void Function(bool)>.from(_connectionListeners)) {
+      listener(connected);
     }
   }
 }

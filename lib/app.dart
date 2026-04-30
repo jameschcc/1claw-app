@@ -80,10 +80,18 @@ class _AppStartup extends StatefulWidget {
 
 class _AppStartupState extends State<_AppStartup> {
   Timer? _defaultProfilesTimer;
+  late final void Function(bool connected) _connectionListener;
 
   @override
   void initState() {
     super.initState();
+    _connectionListener = (isConnected) {
+      if (isConnected) {
+        BackgroundService().start();
+      }
+    };
+    widget.wsService.addConnectionListener(_connectionListener);
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final config = await ServerConfigStore.load();
       if (!mounted) return;
@@ -97,13 +105,6 @@ class _AppStartupState extends State<_AppStartup> {
         // Start foreground keep-alive service
         await BackgroundService().start();
       }
-
-      // Listen for connection state — restart foreground service on reconnect
-      widget.wsService.onConnectionChange = (isConnected) {
-        if (isConnected) {
-          BackgroundService().start();
-        }
-      };
 
       // Load default profiles if no server response after timeout
       _defaultProfilesTimer?.cancel();
@@ -120,6 +121,7 @@ class _AppStartupState extends State<_AppStartup> {
   @override
   void dispose() {
     _defaultProfilesTimer?.cancel();
+    widget.wsService.removeConnectionListener(_connectionListener);
     super.dispose();
   }
 

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -18,7 +17,11 @@ class BackgroundService {
 
   bool _initialized = false;
 
-  bool get _isSupportedPlatform => Platform.isAndroid || Platform.isIOS;
+  bool get _isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  bool get _isSupportedPlatform => _isAndroid || _isIOS;
 
   /// Whether the foreground service is currently active.
   Future<bool> isRunning() {
@@ -41,7 +44,7 @@ class BackgroundService {
     // foreground service starts. The flutter_background_service library has
     // a bug: when a custom notificationChannelId is provided, it skips
     // createNotificationChannel(). We pre-create it ourselves here.
-    if (Platform.isAndroid) {
+    if (_isAndroid) {
       try {
         const channel = MethodChannel('com.claw.claw_app/background_service');
         await channel.invokeMethod('createNotificationChannel');
