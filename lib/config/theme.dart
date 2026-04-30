@@ -50,6 +50,20 @@ class AppTheme {
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppConstants.darkSurface,
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppConstants.primaryBlue;
+          }
+          return Colors.grey[400];
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppConstants.primaryBlue.withValues(alpha: 0.4);
+          }
+          return Colors.grey[700];
+        }),
+      ),
     );
   }
 
@@ -97,6 +111,20 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppConstants.primaryBlue;
+          }
+          return Colors.grey[400];
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppConstants.primaryBlue.withValues(alpha: 0.4);
+          }
+          return Colors.grey[300];
+        }),
       ),
     );
   }
