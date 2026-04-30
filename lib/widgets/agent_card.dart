@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
+import '../utils/color_utils.dart';
 
 /// Compact metro-style card for each agent profile.
 /// Max 200px wide. Long-press/right-click for context menu with pin + info.
@@ -28,7 +29,7 @@ class AgentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Color(profile.colorValue);
+    final color = avatarColor(profile.name);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = profile.status == 'working'
         ? Colors.orangeAccent
