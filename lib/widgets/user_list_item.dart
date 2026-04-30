@@ -5,17 +5,8 @@ import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
+import '../utils/color_utils.dart';
 import 'toast.dart';
-
-/// Compute HSL background color from first letter of name.
-/// hue = ((code - 65) / 26) * 255, saturation=0.75, lightness=0.75
-Color _avatarColor(String name) {
-  final code = name.isNotEmpty ? name.codeUnitAt(0) : 65; // default 'A'
-  final upper = String.fromCharCode(code).toUpperCase().codeUnitAt(0);
-  final idx = (upper - 65).clamp(0, 25);
-  final hue = (idx / 26.0) * 255.0;
-  return HSLColor.fromAHSL(1.0, hue, 0.75, 0.75).toColor();
-}
 
 String _avatarLetter(String name) {
   if (name.isEmpty) return '?';
@@ -63,7 +54,7 @@ class _UserListItemState extends State<UserListItem> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = Color(widget.profile.colorValue);
-    final avatarBg = _avatarColor(widget.profile.name);
+    final avatarBg = avatarColor(widget.profile.name);
     final avatarLetter = _avatarLetter(widget.profile.name);
 
     // Compute background: selected > hover > normal
