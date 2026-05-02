@@ -54,6 +54,55 @@ class ApiService {
     }
   }
 
+  /// Create a new Hermes profile on disk (cloned from an existing profile).
+  /// [name] is the new profile name. [inheritFrom] is the source profile to clone from.
+  Future<AgentProfile> createNewProfile(String name, {String? inheritFrom}) async {
+    try {
+      final body = <String, dynamic>{'name': name};
+      if (inheritFrom != null && inheritFrom.isNotEmpty) {
+        body['inherit_from'] = inheritFrom;
+      }
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/profiles'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 201) {
+        return AgentProfile.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(data['error'] ?? 'Create failed (${response.statusCode})');
+    } catch (e) {
+      throw Exception('Failed to create profile: $e');
+    }
+  }
+
+  /// Spawn a duplicate agent process for an existing profile (no files created on disk).
+  /// Returns the spawned profile info including its new ID (e.g. "dev-2").
+  Future<Map<String, dynamic>> spawnProfile(String profileId) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/profiles/spawn'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'profile_id': profileId}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(data['error'] ?? 'Spawn failed (${response.statusCode})');
+    } catch (e) {
+      throw Exception('Failed to spawn profile: $e');
+    }
+  }
+
   Future<void> deleteProfile(String id) async {
     try {
       await http

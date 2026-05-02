@@ -6,10 +6,12 @@ class AgentProfile {
   final String emoji;
   final String description;
   final String color;
+  final String hermesProfile;
   bool online;
   String status;   // "working" | "free" | "idle" | "starting"
   int tasksQueue;
   bool isPinned;
+  bool isSpawn;
 
   AgentProfile({
     required this.id,
@@ -17,10 +19,12 @@ class AgentProfile {
     required this.emoji,
     required this.description,
     this.color = '#0078D7',
+    this.hermesProfile = '',
     this.online = false,
     this.status = 'free',
     this.tasksQueue = 0,
     this.isPinned = false,
+    this.isSpawn = false,
   });
 
   factory AgentProfile.fromJson(Map<String, dynamic> json) {
@@ -30,9 +34,11 @@ class AgentProfile {
       emoji: json['emoji'] as String? ?? '🤖',
       description: json['description'] as String? ?? '',
       color: json['color'] as String? ?? '#0078D7',
+      hermesProfile: json['hermes_profile'] as String? ?? '',
       online: json['online'] as bool? ?? false,
       status: json['status'] as String? ?? 'free',
       tasksQueue: json['tasks_queue'] as int? ?? 0,
+      isSpawn: json['is_spawn'] as bool? ?? false,
     );
   }
 
@@ -42,9 +48,11 @@ class AgentProfile {
         'emoji': emoji,
         'description': description,
         'color': color,
+        'hermes_profile': hermesProfile,
         'online': online,
         'status': status,
         'tasks_queue': tasksQueue,
+        'is_spawn': isSpawn,
   };
 
   /// Generate avatar color from name using HSL formula.

@@ -7,10 +7,13 @@ import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../services/api_service.dart';
+import '../services/server_config_store.dart';
 import '../widgets/agent_card.dart';
 import '../widgets/connection_indicator.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/user_list_item.dart';
+import '../widgets/toast.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
 
@@ -280,6 +283,48 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Column(
                   children: [
                     const Spacer(),
+                    // Create new profile button — person_add icon
+                    Consumer<ProfilesProvider>(
+                      builder: (_, p, _) => Opacity(
+                        opacity: 0.9,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: p.isConnected
+                              ? () => _showCreateProfileDialog(context, p)
+                              : null,
+                          child: const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Icon(CupertinoIcons.person_add_solid,
+                                  size: 22),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Spawn duplicate button — paste icon
+                    Consumer<ProfilesProvider>(
+                      builder: (_, p, _) => Opacity(
+                        opacity: 0.9,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: p.isConnected
+                              ? () => _showSpawnDialog(context, p)
+                              : null,
+                          child: const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Icon(CupertinoIcons.doc_on_doc,
+                                  size: 22),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     // Refresh button — triggers server profile reload
                     Consumer<ProfilesProvider>(
                       builder: (_, p, _) => Opacity(
@@ -666,6 +711,190 @@ class _HomeScreenState extends State<HomeScreen>
       if (m.content.toLowerCase().contains(query)) return true;
     }
     return false;
+  }
+
+  // ─── Create / Spawn Profile Dialogs ──────────────────────────────
+
+  void _showCreateProfileDialog(BuildContext context, ProfilesProvider provider) {
+    final nameCtl = TextEditingController();
+    String? inheritFrom;
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final profiles = provider.profiles.where((p) => !p.isSpawn).toList();
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(CupertinoIcons.person_add_solid, size: 22),
+                SizedBox(width: 8),
+                Text('Create Profile'),
+              ],
+            ),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Name:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. dev-test',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Inherit from:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: inheritFrom,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Select source profile',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      isDense: true,
+                    ),
+                    items: profiles.map((p) => DropdownMenuItem(
+                      value: p.id,
+                      child: Text('${p.emoji} ${p.name}', overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: (v) => setDialogState(() => inheritFrom = v),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: nameCtl.text.trim().isNotEmpty
+                    ? () {
+                        final name = nameCtl.text.trim();
+                        Navigator.of(context).pop();
+                        _executeCreateProfile(name, inheritFrom, provider);
+                      }
+                    : null,
+                icon: const Icon(CupertinoIcons.person_add_solid, size: 16),
+                label: const Text('Create'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _executeCreateProfile(String name, String? inheritFrom, ProfilesProvider provider) async {
+    try {
+      final cfg = await ServerConfigStore.load();
+      final api = ApiService(baseUrl: cfg.apiUrl);
+      await api.createNewProfile(name, inheritFrom: inheritFrom);
+      // Trigger status refresh so the new profile appears
+      provider.requestStatus();
+      if (context.mounted) {
+        showToast(context, 'Profile "$name" created successfully');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showToast(context, 'Failed: $e');
+      }
+    }
+  }
+
+  void _showSpawnDialog(BuildContext context, ProfilesProvider provider) {
+    final profiles = provider.profiles.where((p) => !p.isSpawn).toList();
+    if (profiles.isEmpty) {
+      showToast(context, 'No profiles to spawn');
+      return;
+    }
+    String? selectedId = profiles.length == 1 ? profiles.first.id : null;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(CupertinoIcons.doc_on_doc, size: 22),
+              SizedBox(width: 8),
+              Text('Spawn Duplicate'),
+            ],
+          ),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('This creates a new agent process running the same profile, without duplicating files on disk.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 16),
+                const Text('Choose profile:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  value: selectedId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Select profile',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    isDense: true,
+                  ),
+                  items: profiles.map((p) => DropdownMenuItem(
+                    value: p.id,
+                    child: Text('${p.emoji} ${p.name}', overflow: TextOverflow.ellipsis),
+                  )).toList(),
+                  onChanged: (v) => setDialogState(() => selectedId = v),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              onPressed: selectedId != null
+                  ? () {
+                      final id = selectedId!;
+                      Navigator.of(context).pop();
+                      _executeSpawn(id, provider);
+                    }
+                  : null,
+              icon: const Icon(CupertinoIcons.doc_on_doc, size: 16),
+              label: const Text('Spawn'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _executeSpawn(String profileId, ProfilesProvider provider) async {
+    try {
+      final cfg = await ServerConfigStore.load();
+      final api = ApiService(baseUrl: cfg.apiUrl);
+      final result = await api.spawnProfile(profileId);
+      // Trigger status refresh so the spawned profile appears
+      provider.requestStatus();
+      if (context.mounted) {
+        final name = result['name'] ?? result['profile_id'] ?? profileId;
+        showToast(context, 'Spawned "$name" from "$profileId"');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showToast(context, 'Failed: $e');
+      }
+    }
   }
 
   // ─── Shared widgets ────────────────────────────────────────────
