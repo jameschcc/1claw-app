@@ -89,14 +89,15 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.claw" "\0"
-            VALUE "FileDescription", "claw_app" "\0"
+            VALUE "CompanyName", "POSH" "\0"
+            VALUE "FileDescription", "1Claw.net - Multi-Agent Platform" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "claw_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.claw. All rights reserved." "\0"
-            VALUE "OriginalFilename", "claw_app.exe" "\0"
-            VALUE "ProductName", "claw_app" "\0"
+            VALUE "InternalName", "1Claw.net" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 POSH. All rights reserved." "\0"
+            VALUE "OriginalFilename", "1Claw.net.exe" "\0"
+            VALUE "ProductName", "1Claw.net" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
+            VALUE "Comments", "Contact: 1claw-support@maxqs.com | Website: https://1claw.net" "\0"
         END
     END
     BLOCK "VarFileInfo"
