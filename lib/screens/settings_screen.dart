@@ -2,10 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
 import '../config/constants.dart';
 import '../providers/font_settings_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/api_service.dart';
 import '../services/server_config_store.dart';
 import '../services/notification_service.dart';
 import '../widgets/font_picker_dialog.dart';
@@ -24,6 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _apiUrlController;
   bool _isSaving = false;
 
+  final TextEditingController _exportPasswordController =
+      TextEditingController();
+  bool _isExporting = false;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _wsUrlController.dispose();
     _apiUrlController.dispose();
+    _exportPasswordController.dispose();
     super.dispose();
   }
 
@@ -67,6 +76,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _buildNotificationsSection(isDark),
         const SizedBox(height: 24),
         _buildAboutSection(isDark),
+        const SizedBox(height: 24),
+        _buildExportSection(isDark),
         const SizedBox(height: 24),
         _buildConnectionSection(isDark),
       ],
@@ -100,6 +111,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildNotificationsSection(isDark),
                 const SizedBox(height: 24),
                 _buildAboutSection(isDark),
+                const SizedBox(height: 24),
+                _buildExportSection(isDark),
                 const SizedBox(height: 24),
                 _buildConnectionSection(isDark),
               ],
@@ -426,6 +439,122 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() {
           _isSaving = false;
         });
+      }
+    }
+  }
+
+  // ── Export Section ─────────────────────────────────────────────────
+
+  Widget _buildExportSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Export Data'),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Export all data as a zip archive',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Includes: databases, profiles, shared files, and config.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _exportPasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    hintText: 'Enter export password',
+                    prefixIcon: Icon(CupertinoIcons.lock),
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  onSubmitted: (_) => _handleExport(),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isExporting ? null : _handleExport,
+                    icon: _isExporting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(CupertinoIcons.cloud_download),
+                    label: Text(_isExporting ? 'Exporting...' : 'Export'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.primaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleExport() async {
+    final password = _exportPasswordController.text.trim();
+    if (password.isEmpty) {
+      showToast(context, 'Please enter the export password');
+      return;
+    }
+
+    setState(() => _isExporting = true);
+
+    try {
+      // Load server config to get the API URL
+      final config = await ServerConfigStore.load();
+      final apiService = ApiService(baseUrl: config.apiUrl);
+
+      final zipBytes = await apiService.exportData(password);
+
+      if (!mounted) return;
+
+      // Save to a file in the documents directory
+      final docDir = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final filePath = '${docDir.path}/hermes-export-$timestamp.zip';
+      final file = File(filePath);
+      await file.writeAsBytes(zipBytes);
+
+      showToast(
+        context,
+        'Exported to: $filePath',
+        duration: const Duration(seconds: 4),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, 'Export failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
       }
     }
   }

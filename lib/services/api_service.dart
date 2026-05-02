@@ -74,4 +74,25 @@ class ApiService {
       return false;
     }
   }
+
+  /// Export all data as a zip archive. Returns the raw bytes of the zip file.
+  Future<List<int>> exportData(String password) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/export'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'password': password}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(data['error'] ?? 'Export failed (${response.statusCode})');
+    } catch (e) {
+      throw Exception('Export failed: $e');
+    }
+  }
 }
