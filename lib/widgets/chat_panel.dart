@@ -59,6 +59,9 @@ class _ChatPanelState extends State<ChatPanel> {
   Timer? _searchDebounce;
   int _lastProcessedSearchKey = 0;
 
+  /// Message ID that should flash (from search result tap).
+  String? _flashingMessageId;
+
   // Input history for Up/Down arrow navigation
   int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
   String _currentDraft = ''; // saved current input when navigating history
@@ -272,9 +275,11 @@ class _ChatPanelState extends State<ChatPanel> {
   }
 
   void _scrollToMessage(int originalIndex) {
-    if (!_scrollController.hasClients) return;
     final msgs = context.read<ChatProvider>().messages;
-    if (msgs.isEmpty) return;
+    if (msgs.isEmpty || originalIndex >= msgs.length) return;
+    final targetId = msgs[originalIndex].id;
+    setState(() => _flashingMessageId = targetId);
+    if (!_scrollController.hasClients) return;
     // In reverse ListView: pixel 0 = bottom (newest), maxScrollExtent = top (oldest)
     // oldest (index 0) → maxScrollExtent, newest (index N-1) → 0
     final ratio = originalIndex / (msgs.length - 1).clamp(1, msgs.length);
@@ -436,7 +441,18 @@ class _ChatPanelState extends State<ChatPanel> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = Color(profile.colorValue);
 
-    return Column(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape &&
+            _isSearching) {
+          _toggleSearch();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Column(
       children: [
         // Search header bar — replaces profile header when searching
         if (widget.showHeader && _isSearching)
@@ -781,6 +797,7 @@ class _ChatPanelState extends State<ChatPanel> {
                                 return ChatBubble(
                                   message: msg,
                                   profileName: profile.name,
+                                  flashMessageId: _flashingMessageId,
                                   isReplyTarget: chatProvider.replyTarget?.id == msg.id,
                                   onReply: () => chatProvider.setReplyTarget(msg),
                                   showRetry: needsRetry,
@@ -1062,7 +1079,8 @@ class _ChatPanelState extends State<ChatPanel> {
           ),
         ),
       ],
-    );
+    ), // Column
+  ); // Focus
   }
 }
 

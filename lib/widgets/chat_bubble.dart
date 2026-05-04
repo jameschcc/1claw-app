@@ -41,6 +41,9 @@ class ChatBubble extends StatefulWidget {
   final bool isFailed;
   final VoidCallback? onRetry;
 
+  /// When non-null and matching [message.id], flash the bubble yellow (2 pulses).
+  final String? flashMessageId;
+
   const ChatBubble({
     super.key,
     required this.message,
@@ -50,21 +53,55 @@ class ChatBubble extends StatefulWidget {
     this.showRetry = false,
     this.isFailed = false,
     this.onRetry,
+    this.flashMessageId,
   });
 
   @override
   State<ChatBubble> createState() => _ChatBubbleState();
 }
 
-class _ChatBubbleState extends State<ChatBubble> {
+class _ChatBubbleState extends State<ChatBubble>
+    with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   bool _isHoveredButton = false;
   bool _showRaw = false;
   double _cachedBubbleMaxWidth = 0;
   Timer? _resizeDebounce;
 
+  // Flash animation — 2 yellow pulses
+  late final AnimationController _flashController;
+  late final Animation<double> _flashAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _flashController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _flashAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.5), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.5, end: 0.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.5), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.5, end: 0.0), weight: 1),
+    ]).animate(_flashController);
+  }
+
+  @override
+  void didUpdateWidget(ChatBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Trigger flash when flashMessageId changes to match this message
+    if (widget.flashMessageId == widget.message.id &&
+        oldWidget.flashMessageId != widget.message.id) {
+      _flashController
+        ..reset()
+        ..forward();
+    }
+  }
+
   @override
   void dispose() {
+    _flashController.dispose();
     _resizeDebounce?.cancel();
     super.dispose();
   }
@@ -262,7 +299,8 @@ class _ChatBubbleState extends State<ChatBubble> {
                   child: MouseRegion(
                     onEnter: (_) => setState(() => _isHovered = true),
                     onExit: (_) => setState(() => _isHovered = false),
-                    child: Container(
+                    child: _buildFlashingBubble(
+                      Container(
                       constraints: BoxConstraints(
                         maxWidth: bubbleMaxWidth,
                       ),
@@ -460,10 +498,11 @@ class _ChatBubbleState extends State<ChatBubble> {
                               ),
                             ),
                         ],
-                      ),
-                    ),
-                  ),
-                );
+                      ), // Stack
+                    ), // Container
+                  ), // _buildFlashingBubble
+                ), // MouseRegion
+              ); // GestureDetector + return
               },
             ),
           ),
@@ -555,6 +594,30 @@ class _ChatBubbleState extends State<ChatBubble> {
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  Widget _buildFlashingBubble(Widget bubble) {
+    return AnimatedBuilder(
+      animation: _flashAnimation,
+      builder: (context, child) {
+        final opacity = _flashAnimation.value;
+        if (opacity <= 0) return child!;
+        return Stack(
+          children: [
+            child!,
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.yellow.withValues(alpha: opacity * 0.5),
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: bubble,
+    );
   }
 
   String? _buildDebugSessionLabel(ChatMessage message) {

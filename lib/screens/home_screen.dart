@@ -441,14 +441,14 @@ class _HomeScreenState extends State<HomeScreen>
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  fontWeight: (_filterHasFocus && _filterQuery.isNotEmpty)
+                                  fontWeight: _filterQuery.isNotEmpty
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                   color: isDark ? Colors.white70 : Colors.black87,
                                 ),
                                 decoration: InputDecoration(
                                   filled: true,
-                                  fillColor: (_filterHasFocus && _filterQuery.isNotEmpty)
+                                  fillColor: _filterQuery.isNotEmpty
                                       ? Colors.yellow.shade400
                                       : Colors.transparent,
                                   hintText: 'Filter Agent',
