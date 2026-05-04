@@ -151,76 +151,102 @@ class WebSocketService {
         'client_id': clientId,
       },
     );
-    final channel = WebSocketChannel.connect(uri);
-    _channel = channel;
+
+    /// Retry on first failure (200ms delay) before considering it a hard fail.
+    const maxAttempts = 2;
 
     try {
-      await channel.ready.timeout(const Duration(seconds: 5));
-      if (_disposed ||
-          operationId != _currentConnectOperationId ||
-          !identical(_channel, channel)) {
-        await _closeChannel(channel: channel);
-        return false;
-      }
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (_disposed || _connected) return false;
 
-      _setConnected(true);
-      _reconnectAttempt = 0;
-      _needsManualReconnect = false;
-      debugPrint('[ws] Connected as $clientId to $_serverUrl');
+        // Create a fresh channel for each attempt
+        final channel = WebSocketChannel.connect(uri);
+        _channel = channel;
 
-      // Listen for messages
-      _channelSubscription = channel.stream.listen(
-        (data) {
-          if (_disposed) return;
-          WsMessage msg;
-          try {
-            final json = jsonDecode(data as String) as Map<String, dynamic>;
-            msg = WsMessage.fromJson(json);
-          } catch (e) {
-            debugPrint('[ws] Parse error: $e');
-            return;
+        try {
+          await channel.ready.timeout(const Duration(seconds: 5));
+          if (_disposed ||
+              operationId != _currentConnectOperationId ||
+              !identical(_channel, channel)) {
+            await _closeChannel(channel: channel);
+            return false;
           }
 
-          try {
-            _handleMessage(msg);
-          } catch (e) {
-            debugPrint('[ws] Message handling error: $e');
-          }
-        },
-        onError: (error) {
-          debugPrint('[ws] Error: $error');
-          _handleDisconnect();
-        },
-        onDone: () {
-          debugPrint('[ws] Connection closed');
-          _handleDisconnect();
-        },
-        cancelOnError: true,
-      );
+          _setConnected(true);
+          _reconnectAttempt = 0;
+          _needsManualReconnect = false;
+          debugPrint('[ws] Connected as $clientId to $_serverUrl');
 
-      // Start heartbeat
-      _startHeartbeat();
-      return true;
-    } on TimeoutException {
-      debugPrint('[ws] Connect timeout');
-      await _closeChannel(channel: channel);
-      if (operationId == _currentConnectOperationId) {
-        _handleDisconnect();
+          // Listen for messages
+          _channelSubscription = channel.stream.listen(
+            (data) {
+              if (_disposed) return;
+              WsMessage msg;
+              try {
+                final json = jsonDecode(data as String) as Map<String, dynamic>;
+                msg = WsMessage.fromJson(json);
+              } catch (e) {
+                debugPrint('[ws] Parse error: $e');
+                return;
+              }
+
+              try {
+                _handleMessage(msg);
+              } catch (e) {
+                debugPrint('[ws] Message handling error: $e');
+              }
+            },
+            onError: (error) {
+              debugPrint('[ws] Error: $error');
+              _handleDisconnect();
+            },
+            onDone: () {
+              debugPrint('[ws] Connection closed');
+              _handleDisconnect();
+            },
+            cancelOnError: true,
+          );
+
+          // Start heartbeat
+          _startHeartbeat();
+          return true;
+        } on TimeoutException {
+          debugPrint('[ws] Connect timeout (attempt $attempt/$maxAttempts)');
+          await _closeChannel(channel: channel);
+          _channel = null;
+          if (attempt < maxAttempts) {
+            debugPrint('[ws] Retrying in 200ms...');
+            await Future.delayed(const Duration(milliseconds: 200));
+            continue;
+          }
+          if (operationId == _currentConnectOperationId) {
+            _handleDisconnect();
+          }
+          return false;
+        } catch (e) {
+          debugPrint('[ws] Connect error (attempt $attempt/$maxAttempts): $e');
+          await _closeChannel(channel: channel);
+          _channel = null;
+          if (attempt < maxAttempts) {
+            debugPrint('[ws] Retrying in 200ms...');
+            await Future.delayed(const Duration(milliseconds: 200));
+            continue;
+          }
+          if (operationId == _currentConnectOperationId) {
+            _handleDisconnect();
+          }
+          return false;
+        }
       }
-      return false;
-    } catch (e) {
-      debugPrint('[ws] Connect error: $e');
-      await _closeChannel(channel: channel);
-      if (operationId == _currentConnectOperationId) {
-        _handleDisconnect();
-      }
-      return false;
     } finally {
       if (_currentConnectFutureOperationId == operationId) {
         _connectFuture = null;
         _isConnecting = false;
       }
     }
+
+    // Shouldn't reach here
+    return false;
   }
 
   /// Disconnect from the server.
