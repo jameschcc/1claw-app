@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _filterQuery = '';
   late AnimationController _refreshSpinCtrl;
   late AnimationController _gearSpinCtrl;
+  final Map<String, bool> _hoverStates = {};
 
   @override
   void initState() {
@@ -276,107 +277,8 @@ class _HomeScreenState extends State<HomeScreen>
 
           return Row(
             children: [
-              // ── Toolbar (60px) — darker gray, gear at bottom ──
-              Container(
-                width: 60,
-                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFD8D8D8),
-                child: Column(
-                  children: [
-                    const Spacer(),
-                    // Create new profile button — person_add icon
-                    Consumer<ProfilesProvider>(
-                      builder: (_, p, _) => Opacity(
-                        opacity: 0.9,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: p.isConnected
-                              ? () => _showCreateProfileDialog(context, p)
-                              : null,
-                          child: const SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Center(
-                              child: Icon(CupertinoIcons.person_add_solid,
-                                  size: 22),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Spawn duplicate button — paste icon
-                    Consumer<ProfilesProvider>(
-                      builder: (_, p, _) => Opacity(
-                        opacity: 0.9,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: p.isConnected
-                              ? () => _showSpawnDialog(context, p)
-                              : null,
-                          child: const SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Center(
-                              child: Icon(CupertinoIcons.doc_on_doc,
-                                  size: 22),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Refresh button — triggers server profile reload
-                    Consumer<ProfilesProvider>(
-                      builder: (_, p, _) => Opacity(
-                        opacity: 0.9,
-                        child: RotationTransition(
-                          turns: _refreshSpinCtrl,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: p.isConnected
-                                ? () {
-                                    _refreshSpinCtrl.forward(from: 0);
-                                    p.requestStatus();
-                                  }
-                                : null,
-                            child: const SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: Center(
-                                child: Icon(CupertinoIcons.refresh,
-                                    size: 22),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Opacity(
-                      opacity: 0.9,
-                      child: RotationTransition(
-                        turns: _gearSpinCtrl,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () {
-                            _gearSpinCtrl.forward(from: 0);
-                            _openSettings(context);
-                          },
-                          child: const SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Center(
-                              child: Icon(CupertinoIcons.gear,
-                                  size: 22),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
+// ── Toolbar (60px) — darker gray, gear at bottom ──
+              _buildToolbar(isDark, provider),
 
               // ── Divider 1 ──
               VerticalDivider(
@@ -453,6 +355,14 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         child: Row(
                           children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Icon(
+                                CupertinoIcons.search,
+                                size: 14,
+                                color: isDark ? Colors.white38 : Colors.black38,
+                              ),
+                            ),
                             Expanded(
                               child: TextField(
                                 controller: _filterController,
@@ -726,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen>
           builder: (context, setDialogState) => AlertDialog(
             title: const Row(
               children: [
-                Icon(CupertinoIcons.person_add_solid, size: 22),
+                Icon(CupertinoIcons.person_badge_plus, size: 22),
                 SizedBox(width: 8),
                 Text('Create Profile'),
               ],
@@ -783,7 +693,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _executeCreateProfile(name, inheritFrom, provider);
                       }
                     : null,
-                icon: const Icon(CupertinoIcons.person_add_solid, size: 16),
+                icon: const Icon(CupertinoIcons.person_badge_plus, size: 16),
                 label: const Text('Create'),
               ),
             ],
@@ -895,6 +805,104 @@ class _HomeScreenState extends State<HomeScreen>
         showToast(context, 'Failed: $e');
       }
     }
+  }
+
+  // ─── Toolbar helpers with hover effects ──────────────────────
+
+  Widget _buildToolbar(bool isDark, ProfilesProvider provider) {
+    return Container(
+      width: 60,
+      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFD8D8D8),
+      child: Column(
+        children: [
+          const Spacer(),
+          _toolbarBtn(
+            key: 'create',
+            icon: const Icon(CupertinoIcons.person_badge_plus, size: 22),
+            isDark: isDark,
+            onTap: provider.isConnected
+                ? () => _showCreateProfileDialog(context, provider)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          _toolbarBtn(
+            key: 'spawn',
+            icon: const Icon(CupertinoIcons.doc_on_doc, size: 22),
+            isDark: isDark,
+            onTap: provider.isConnected
+                ? () => _showSpawnDialog(context, provider)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          _toolbarBtn(
+            key: 'refresh',
+            icon: const Icon(CupertinoIcons.refresh, size: 22),
+            isDark: isDark,
+            spinController: _refreshSpinCtrl,
+            onTap: () {
+              if (!provider.isConnected) {
+                provider.reconnect();
+              }
+              _refreshSpinCtrl.forward(from: 0);
+              provider.requestStatus();
+            },
+          ),
+          const SizedBox(height: 4),
+          _toolbarBtn(
+            key: 'settings',
+            icon: const Icon(CupertinoIcons.gear, size: 22),
+            isDark: isDark,
+            spinController: _gearSpinCtrl,
+            onTap: () {
+              _gearSpinCtrl.forward(from: 0);
+              _openSettings(context);
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolbarBtn({
+    required String key,
+    required Widget icon,
+    required bool isDark,
+    required VoidCallback? onTap,
+    AnimationController? spinController,
+  }) {
+    final isHovered = _hoverStates[key] ?? false;
+
+    Widget btn = Opacity(
+      opacity: 0.9,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: isHovered
+              ? (isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.08))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Center(child: icon),
+        ),
+      ),
+    );
+
+    if (spinController != null) {
+      btn = RotationTransition(turns: spinController, child: btn);
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoverStates[key] = true),
+      onExit: (_) => setState(() => _hoverStates[key] = false),
+      child: btn,
+    );
   }
 
   // ─── Shared widgets ────────────────────────────────────────────
