@@ -62,6 +62,10 @@ class _ChatPanelState extends State<ChatPanel> {
   /// Message ID that should flash (from search result tap).
   String? _flashingMessageId;
 
+  /// Per-message GlobalKeys for precise scroll positioning.
+  /// Keyed by message ID, used in [_scrollToMessage] to find exact RenderBox offset.
+  final Map<String, GlobalKey> _messageKeys = {};
+
   // Input history for Up/Down arrow navigation
   int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
   String _currentDraft = ''; // saved current input when navigating history
@@ -277,28 +281,77 @@ class _ChatPanelState extends State<ChatPanel> {
   void _scrollToMessage(int originalIndex) {
     final msgs = context.read<ChatProvider>().messages;
     if (msgs.isEmpty || originalIndex >= msgs.length) return;
-    final targetId = msgs[originalIndex].id;
+    final targetMsg = msgs[originalIndex];
+    final targetId = targetMsg.id;
+
     // Clear first so re-clicking same message re-triggers flash
     setState(() => _flashingMessageId = null);
     if (!_scrollController.hasClients) return;
-    // In reverse ListView: pixel 0 = bottom (newest), maxScrollExtent = top (oldest)
-    // oldest (index 0) → maxScrollExtent, newest (index N-1) → 0
-    final ratio = originalIndex / (msgs.length - 1).clamp(1, msgs.length);
-    final targetOffset =
-        _scrollController.position.maxScrollExtent * (1.0 - ratio);
-    // Add offset so target appears in middle of screen (not hidden behind search panel)
+
     final viewportHeight = _scrollController.position.viewportDimension;
-    final middleOffset = (targetOffset + viewportHeight * 0.35)
+    const desiredFraction = 0.35; // target top edge at 35% from top of viewport
+
+    // Phase 1 — rough index-based scroll to get target into viewport
+    final ratio = originalIndex / (msgs.length - 1).clamp(1, msgs.length);
+    final roughOffset = _scrollController.position.maxScrollExtent * (1.0 - ratio);
+    // Add extra offset so the target is roughly in the upper half
+    final roughAdjusted = (roughOffset + viewportHeight * desiredFraction)
         .clamp(0.0, _scrollController.position.maxScrollExtent);
+
     _scrollController.animateTo(
-      middleOffset,
+      roughAdjusted,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     ).then((_) {
-      // Flash only after scroll animation completes
-      if (mounted) {
-        setState(() => _flashingMessageId = targetId);
+      if (!mounted || !_scrollController.hasClients) return;
+
+      // Phase 2 — get exact RenderBox position and correct
+      final key = _messageKeys[targetId];
+      if (key?.currentContext == null) {
+        // Fallback: target not rendered (shouldn't happen after phase 1)
+        if (mounted) setState(() => _flashingMessageId = targetId);
+        return;
       }
+
+      // Find scroll view's RenderBox for coordinate reference
+      final scrollContext = _scrollController.position.context.notificationContext;
+      if (scrollContext == null) {
+        if (mounted) setState(() => _flashingMessageId = targetId);
+        return;
+      }
+
+      final targetRenderBox =
+          key!.currentContext!.findRenderObject() as RenderBox;
+      // ignore: use_build_context_synchronously — captured in same .then() callback, no await between
+      final scrollRenderBox = scrollContext.findRenderObject() as RenderBox;
+
+      // Get the target's top edge position relative to scroll view's top-left
+      final targetViewportOffset =
+          targetRenderBox.localToGlobal(
+            Offset.zero,
+            ancestor: scrollRenderBox,
+          );
+      final targetY = targetViewportOffset.dy; // physical Y in viewport coords
+
+      // Desired physical position for target's top edge
+      final desiredY = viewportHeight * desiredFraction;
+
+      // Delta: in a reverse ListView, increasing pixels moves content UP.
+      // If targetY > desiredY, target is too low → scroll down (increase pixels).
+      final delta = targetY - desiredY;
+
+      final correctedPixels = (_scrollController.position.pixels + delta)
+          .clamp(0.0, _scrollController.position.maxScrollExtent);
+
+      _scrollController.animateTo(
+        correctedPixels,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+      ).then((_) {
+        if (mounted) {
+          setState(() => _flashingMessageId = targetId);
+        }
+      });
     });
     showToast(context, '已定位到第 ${originalIndex + 1} 条');
   }
@@ -805,6 +858,10 @@ class _ChatPanelState extends State<ChatPanel> {
                                             msgs[msgIndex + 1].isUser));
                                 final isFailed = chatProvider.isMessageFailed(msg.id);
                                 return ChatBubble(
+                                  key: _messageKeys.putIfAbsent(
+                                    msg.id,
+                                    () => GlobalKey(),
+                                  ),
                                   message: msg,
                                   profileName: profile.name,
                                   flashMessageId: _flashingMessageId,
