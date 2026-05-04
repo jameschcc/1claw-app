@@ -990,10 +990,10 @@ class _HomeScreenState extends State<HomeScreen>
                   ? Colors.white.withValues(alpha: 0.12)
                   : Colors.black.withValues(alpha: 0.08))
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(22),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Center(child: icon),
         ),
