@@ -297,6 +297,7 @@ class _ChatBubbleState extends State<ChatBubble>
                   onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
                   onSecondaryTapDown: (details) => _showContextMenu(context, details.globalPosition),
                   child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
                     onEnter: (_) => setState(() => _isHovered = true),
                     onExit: (_) => setState(() => _isHovered = false),
                     child: _buildFlashingBubble(

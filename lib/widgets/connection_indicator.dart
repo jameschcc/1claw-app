@@ -61,13 +61,16 @@ class ConnectionIndicator extends StatelessWidget {
             const SizedBox(width: 8),
             GestureDetector(
               onTap: onRetry,
-              child: const Icon(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: const Icon(
                 CupertinoIcons.refresh,
                 size: 16,
                 color: Colors.red,
               ),
             ),
-          ],
+          ),
+        ],
         ],
       ),
     );

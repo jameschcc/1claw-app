@@ -46,7 +46,9 @@ class AgentCard extends StatelessWidget {
       return _buildCompact(context, color, isDark, statusColor, statusLabel);
     }
 
-    return GestureDetector(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
       onTap: profile.online ? onTap : null,
       onLongPress: () => _showContextMenu(context),
       onSecondaryTap: () => _showContextMenu(context),
@@ -213,12 +215,15 @@ class AgentCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildCompact(BuildContext context, Color color, bool isDark,
       Color statusColor, String statusLabel) {
-    return GestureDetector(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
       onTap: profile.online ? onTap : null,
       onLongPress: () => _showContextMenu(context),
       onSecondaryTap: () => _showContextMenu(context),
@@ -317,6 +322,7 @@ class AgentCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

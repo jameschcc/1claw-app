@@ -572,7 +572,9 @@ class _ChatPanelState extends State<ChatPanel> {
                   ),
                 ),
                 if (_searchQuery.isNotEmpty)
-                  GestureDetector(
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
                     onTap: () {
                       _searchController.clear();
                     },
@@ -581,6 +583,7 @@ class _ChatPanelState extends State<ChatPanel> {
                       child: Icon(CupertinoIcons.clear_circled_solid, size: 18,
                           color: isDark ? Colors.white54 : Colors.black45),
                     ),
+                  ),
                   ),
               ],
             ),
@@ -644,7 +647,9 @@ class _ChatPanelState extends State<ChatPanel> {
                 onTap: _toggleSearch,
                 child: Tooltip(
                   message: '搜索消息',
-                  child: Container(
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                         color: isDark ? Colors.white10 : Colors.transparent,
@@ -655,6 +660,7 @@ class _ChatPanelState extends State<ChatPanel> {
                   ),
                 ),
               ),
+            ),
             ],
           ),
         ),
@@ -977,13 +983,16 @@ class _ChatPanelState extends State<ChatPanel> {
                   ),
                   GestureDetector(
                     onTap: () => chatProvider.clearReplyTarget(),
-                    child: Padding(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: Icon(CupertinoIcons.clear_circled_solid,
                           size: 18,
                           color: isDark ? Colors.white38 : Colors.black38),
                     ),
                   ),
+                ),
                 ],
               ),
             );
@@ -1036,7 +1045,9 @@ class _ChatPanelState extends State<ChatPanel> {
                                 }
                               }
                             },
-                            child: Padding(
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: Padding(
                               padding:
                                   const EdgeInsets.only(right: 6, top: 2),
                               child: Icon(
@@ -1047,6 +1058,7 @@ class _ChatPanelState extends State<ChatPanel> {
                                     : Colors.black38,
                               ),
                             ),
+                          ),
                           ),
                           Expanded(
                             child: Text(
