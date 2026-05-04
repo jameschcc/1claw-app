@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen>
   Timer? _resizeTimer;
   final TextEditingController _filterController = TextEditingController();
   String _filterQuery = '';
+  String _sortBy = 'time'; // 'time' or 'alpha'
   late AnimationController _refreshSpinCtrl;
   late AnimationController _gearSpinCtrl;
   final Map<String, bool> _hoverStates = {};
@@ -317,10 +318,11 @@ class _HomeScreenState extends State<HomeScreen>
                     // User list
                     Expanded(
                       child: () {
+                        final sorted = _sortProfiles(profiles);
                         final filtered = _filterQuery.isEmpty
-                            ? profiles
+                            ? sorted
                             : _filterProfiles(
-                                profiles, _filterQuery, context.read<ChatProvider>());
+                                sorted, _filterQuery, context.read<ChatProvider>());
                         return ListView.builder(
                           padding: EdgeInsets.zero,
                           itemCount: filtered.length,
@@ -399,6 +401,22 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                 ),
                               ),
+                            const SizedBox(width: 4),
+                            // Sort by time
+                            _sortBtn(
+                              icon: CupertinoIcons.clock,
+                              isActive: _sortBy == 'time',
+                              isDark: isDark,
+                              onTap: () => setState(() => _sortBy = 'time'),
+                            ),
+                            const SizedBox(width: 2),
+                            // Sort by A-Z
+                            _sortBtn(
+                              icon: CupertinoIcons.textformat_abc,
+                              isActive: _sortBy == 'alpha',
+                              isDark: isDark,
+                              onTap: () => setState(() => _sortBy = 'alpha'),
+                            ),
                           ],
                         ),
                       ),
@@ -903,6 +921,54 @@ class _HomeScreenState extends State<HomeScreen>
       onExit: (_) => setState(() => _hoverStates[key] = false),
       child: btn,
     );
+  }
+
+  Widget _sortBtn({
+    required IconData icon,
+    required bool isActive,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    final key = 'sort_${isActive ? _sortBy : ''}_$icon';
+    final isHovered = _hoverStates[key] ?? false;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoverStates[key] = true),
+      onExit: (_) => setState(() => _hoverStates[key] = false),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: isHovered || isActive
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.08))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            icon,
+            size: 14,
+            color: isActive
+                ? (isDark ? Colors.white : Colors.black87)
+                : (isDark ? Colors.white38 : Colors.black38),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Sort profiles by server order (most recent first) or alphabetically.
+  List<AgentProfile> _sortProfiles(List<AgentProfile> profiles) {
+    if (_sortBy == 'alpha') {
+      final sorted = List<AgentProfile>.from(profiles);
+      sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return sorted;
+    }
+    // Time sort: return as-is (server delivers in connection/activity order)
+    return profiles;
   }
 
   // ─── Shared widgets ────────────────────────────────────────────
