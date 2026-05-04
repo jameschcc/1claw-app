@@ -52,6 +52,7 @@ class _ChatPanelState extends State<ChatPanel> {
 
   // Search
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   bool _isSearching = false;
   String _searchQuery = '';
   final List<_SearchResult> _searchResults = [];
@@ -73,6 +74,13 @@ class _ChatPanelState extends State<ChatPanel> {
     });
     _scrollController.addListener(_onScroll);
     _inputFocus.onKeyEvent = _onKeyEvent;
+    _searchFocus.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+        _toggleSearch();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
   }
 
   @override
@@ -134,6 +142,7 @@ class _ChatPanelState extends State<ChatPanel> {
     _scrollController.dispose();
     _inputFocus.dispose();
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -434,7 +443,11 @@ class _ChatPanelState extends State<ChatPanel> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isDark ? AppConstants.darkSurface : Colors.white,
+              color: Color.lerp(
+                isDark ? AppConstants.darkSurface : Colors.white,
+                Colors.yellow.shade400,
+                0.2,
+              )!,
               border: Border(
                 bottom: BorderSide(
                   color: isDark ? Colors.white12 : Colors.black12,
@@ -456,6 +469,7 @@ class _ChatPanelState extends State<ChatPanel> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
+                    focusNode: _searchFocus,
                     onChanged: _onSearchChanged,
                     autofocus: true,
                     decoration: InputDecoration(

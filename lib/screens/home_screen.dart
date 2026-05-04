@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
@@ -36,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _refreshSpinCtrl;
   late AnimationController _gearSpinCtrl;
   final Map<String, bool> _hoverStates = {};
+  final FocusNode _filterFocus = FocusNode();
+  bool _filterHasFocus = false;
 
   @override
   void initState() {
@@ -50,6 +53,18 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     )..addListener(() => setState(() {}));
+    _filterFocus.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+        _filterController.clear();
+        setState(() => _filterQuery = '');
+        _filterFocus.unfocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+    _filterFocus.addListener(() {
+      if (mounted) setState(() => _filterHasFocus = _filterFocus.hasFocus);
+    });
     // Default to portrait; corrected on first post-frame
     _isWide = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -88,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen>
     _refreshSpinCtrl.dispose();
     _gearSpinCtrl.dispose();
     _filterController.dispose();
+    _filterFocus.dispose();
     super.dispose();
   }
 
@@ -420,13 +436,21 @@ class _HomeScreenState extends State<HomeScreen>
                             Expanded(
                               child: TextField(
                                 controller: _filterController,
+                                focusNode: _filterFocus,
                                 onChanged: (v) => setState(() => _filterQuery = v),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 13,
+                                  fontWeight: (_filterHasFocus && _filterQuery.isNotEmpty)
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                   color: isDark ? Colors.white70 : Colors.black87,
                                 ),
                                 decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: (_filterHasFocus && _filterQuery.isNotEmpty)
+                                      ? Colors.yellow.shade400
+                                      : Colors.transparent,
                                   hintText: 'Filter Agent',
                                   hintStyle: TextStyle(
                                     fontSize: 13,
