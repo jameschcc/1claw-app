@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen>
   final TextEditingController _filterController = TextEditingController();
   String _filterQuery = '';
   String _sortBy = 'time'; // 'time' or 'alpha'
+  int _searchTriggerKey = 0;
   late AnimationController _refreshSpinCtrl;
   late AnimationController _gearSpinCtrl;
   final Map<String, bool> _hoverStates = {};
@@ -319,20 +320,71 @@ class _HomeScreenState extends State<HomeScreen>
                     Expanded(
                       child: () {
                         final sorted = _sortProfiles(profiles);
-                        final filtered = _filterQuery.isEmpty
-                            ? sorted
-                            : _filterProfiles(
-                                sorted, _filterQuery, context.read<ChatProvider>());
+                        if (_filterQuery.isEmpty) {
+                          // No filtering — show all as one flat list
+                          return ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: sorted.length,
+                            itemBuilder: (context, index) {
+                              final profile = sorted[index];
+                              return UserListItem(
+                                profile: profile,
+                                isSelected: profile.id == activeId,
+                                onTap: () {
+                                  provider.setActiveProfile(profile.id);
+                                },
+                                onTogglePin: () =>
+                                    provider.togglePin(profile.id),
+                              );
+                            },
+                          );
+                        }
+                        // Filtering: split into name matches and history matches
+                        final q = _filterQuery.toLowerCase();
+                        final nameMatches = <AgentProfile>[];
+                        final historyMatches = <AgentProfile>[];
+                        for (final p in sorted) {
+                          if (p.name.toLowerCase().contains(q)) {
+                            nameMatches.add(p);
+                          } else if (_matchesAnyMessage(
+                              context.read<ChatProvider>(), p.id, q)) {
+                            historyMatches.add(p);
+                          }
+                        }
+                        final hasHistory = historyMatches.isNotEmpty;
+                        final total = nameMatches.length +
+                            (hasHistory ? 1 + historyMatches.length : 0);
                         return ListView.builder(
                           padding: EdgeInsets.zero,
-                          itemCount: filtered.length,
+                          itemCount: total,
                           itemBuilder: (context, index) {
-                            final profile = filtered[index];
+                            // Section 1: name matches
+                            if (index < nameMatches.length) {
+                              final profile = nameMatches[index];
+                              return UserListItem(
+                                profile: profile,
+                                isSelected: profile.id == activeId,
+                                onTap: () {
+                                  provider.setActiveProfile(profile.id);
+                                },
+                                onTogglePin: () =>
+                                    provider.togglePin(profile.id),
+                              );
+                            }
+                            // Section header
+                            if (index == nameMatches.length) {
+                              return _buildHistorySectionHeader(
+                                  _filterQuery, isDark);
+                            }
+                            // Section 2: history matches
+                            final hi = index - nameMatches.length - 1;
+                            final profile = historyMatches[hi];
                             return UserListItem(
                               profile: profile,
                               isSelected: profile.id == activeId,
                               onTap: () {
                                 provider.setActiveProfile(profile.id);
+                                setState(() => _searchTriggerKey++);
                               },
                               onTogglePin: () =>
                                   provider.togglePin(profile.id),
@@ -455,7 +507,11 @@ class _HomeScreenState extends State<HomeScreen>
 
               // ── Right: chat panel ──
               Expanded(
-                child: ChatPanel(profile: activeProfile),
+                child: ChatPanel(
+                  profile: activeProfile,
+                  searchTriggerKey: _searchTriggerKey,
+                  searchQuery: _filterQuery,
+                ),
               ),
             ],
           );
@@ -613,26 +669,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ─── Sidebar profile filter ────────────────────────────────────
 
-  /// Filter profiles by name (highest priority), then by chat history content.
-  List<AgentProfile> _filterProfiles(
-    List<AgentProfile> profiles,
-    String query,
-    ChatProvider chatProvider,
-  ) {
-    if (query.isEmpty) return profiles;
-    final q = query.toLowerCase();
-    final nameMatches = <AgentProfile>[];
-    final historyMatches = <AgentProfile>[];
-    for (final p in profiles) {
-      if (p.name.toLowerCase().contains(q)) {
-        nameMatches.add(p);
-      } else if (_matchesAnyMessage(chatProvider, p.id, q)) {
-        historyMatches.add(p);
-      }
-    }
-    return [...nameMatches, ...historyMatches];
-  }
-
   bool _matchesAnyMessage(ChatProvider chatProvider, String profileId, String query) {
     final messages = chatProvider.getMessagesForProfile(profileId);
     for (final m in messages) {
@@ -641,7 +677,32 @@ class _HomeScreenState extends State<HomeScreen>
     return false;
   }
 
-  // ─── Create / Spawn Profile Dialogs ──────────────────────────────
+  Widget _buildHistorySectionHeader(String query, bool isDark) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.04)
+            : Colors.black.withValues(alpha: 0.03),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white10 : Colors.black12,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Text(
+        '历史聊天中包含"$query"的',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white54 : Colors.black45,
+        ),
+      ),
+    );
+  }
 
   void _showCreateProfileDialog(BuildContext context, ProfilesProvider provider) {
     final nameCtl = TextEditingController();

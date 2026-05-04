@@ -22,10 +22,19 @@ class ChatPanel extends StatefulWidget {
   final AgentProfile profile;
   final bool showHeader;
 
+  /// When non-zero, triggers auto-search in the panel.
+  /// Paired with [searchQuery] — the text to search for.
+  /// Increment this value each time a new search should be triggered
+  /// (e.g., from the sidebar history-match tap).
+  final int searchTriggerKey;
+  final String searchQuery;
+
   const ChatPanel({
     super.key,
     required this.profile,
     this.showHeader = true,
+    this.searchTriggerKey = 0,
+    this.searchQuery = '',
   });
 
   @override
@@ -47,6 +56,7 @@ class _ChatPanelState extends State<ChatPanel> {
   String _searchQuery = '';
   final List<_SearchResult> _searchResults = [];
   Timer? _searchDebounce;
+  int _lastProcessedSearchKey = 0;
 
   // Input history for Up/Down arrow navigation
   int _historyIndex = -1; // -1 = current text, 0 = oldest, N-1 = newest
@@ -97,6 +107,22 @@ class _ChatPanelState extends State<ChatPanel> {
         _switchToProfile(widget.profile.id);
         _restoreDraft();
         _inputFocus.requestFocus();
+      });
+    }
+    // Handle external search trigger (from sidebar history-match tap)
+    if (widget.searchTriggerKey != _lastProcessedSearchKey &&
+        widget.searchQuery.isNotEmpty) {
+      _lastProcessedSearchKey = widget.searchTriggerKey;
+      final q = widget.searchQuery;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!_isSearching) {
+          setState(() => _isSearching = true);
+        }
+        _searchController.text = q;
+        _searchQuery = q;
+        _searchDebounce?.cancel();
+        _performSearch(q);
       });
     }
   }
