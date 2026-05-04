@@ -278,18 +278,28 @@ class _ChatPanelState extends State<ChatPanel> {
     final msgs = context.read<ChatProvider>().messages;
     if (msgs.isEmpty || originalIndex >= msgs.length) return;
     final targetId = msgs[originalIndex].id;
-    setState(() => _flashingMessageId = targetId);
+    // Clear first so re-clicking same message re-triggers flash
+    setState(() => _flashingMessageId = null);
     if (!_scrollController.hasClients) return;
     // In reverse ListView: pixel 0 = bottom (newest), maxScrollExtent = top (oldest)
     // oldest (index 0) → maxScrollExtent, newest (index N-1) → 0
     final ratio = originalIndex / (msgs.length - 1).clamp(1, msgs.length);
     final targetOffset =
         _scrollController.position.maxScrollExtent * (1.0 - ratio);
+    // Add offset so target appears in middle of screen (not hidden behind search panel)
+    final viewportHeight = _scrollController.position.viewportDimension;
+    final middleOffset = (targetOffset + viewportHeight * 0.35)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(
-      targetOffset,
+      middleOffset,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
-    );
+    ).then((_) {
+      // Flash only after scroll animation completes
+      if (mounted) {
+        setState(() => _flashingMessageId = targetId);
+      }
+    });
     showToast(context, '已定位到第 ${originalIndex + 1} 条');
   }
 
