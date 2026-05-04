@@ -443,11 +443,15 @@ class _ChatPanelState extends State<ChatPanel> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Color.lerp(
-                isDark ? AppConstants.darkSurface : Colors.white,
-                Colors.yellow.shade400,
-                0.2,
-              )!,
+              color: _searchQuery.isNotEmpty
+                  ? Color.lerp(
+                      isDark ? AppConstants.darkSurface : Colors.white,
+                      Colors.yellow.shade400,
+                      0.25,
+                    )!
+                  : isDark
+                      ? AppConstants.darkSurface
+                      : Colors.white,
               border: Border(
                 bottom: BorderSide(
                   color: isDark ? Colors.white12 : Colors.black12,
@@ -596,16 +600,30 @@ class _ChatPanelState extends State<ChatPanel> {
                 final preview = snippet.length > 80
                     ? '...${snippet.substring(matchIdx - 20 < 0 ? 0 : matchIdx - 20, (matchIdx + _searchQuery.length + 40).clamp(0, snippet.length))}...'
                     : snippet;
-                return Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      _scrollToMessage(result.originalIndex);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      child: Row(
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Color.lerp(
+                      isDark ? AppConstants.darkSurface : Colors.white,
+                      Colors.yellow.shade400,
+                      0.08,
+                    )!,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark ? Colors.white10 : Colors.black12,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        _scrollToMessage(result.originalIndex);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                        child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
@@ -651,8 +669,9 @@ class _ChatPanelState extends State<ChatPanel> {
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+              );
+            },
             ),
           ),
 

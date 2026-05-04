@@ -705,7 +705,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.04)
