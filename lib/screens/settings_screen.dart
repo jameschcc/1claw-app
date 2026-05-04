@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 import '../config/constants.dart';
 import '../providers/font_settings_provider.dart';
@@ -28,9 +28,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _apiUrlController;
   bool _isSaving = false;
 
+  // ── Export form state ─────────────────────────────────────────────
   final TextEditingController _exportPasswordController =
       TextEditingController();
+  final TextEditingController _exportConfirmPasswordController =
+      TextEditingController();
+  String? _exportFolderPath;
   bool _isExporting = false;
+
+  String? _passwordError;
+  String? _confirmPasswordError;
+  String? _folderError;
+
+  bool get _exportValid =>
+      _passwordError == null &&
+      _confirmPasswordError == null &&
+      _folderError == null &&
+      _exportPasswordController.text.isNotEmpty &&
+      _exportConfirmPasswordController.text.isNotEmpty &&
+      _exportFolderPath != null;
 
   @override
   void initState() {
@@ -40,13 +56,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _apiUrlController =
         TextEditingController(text: AppConstants.defaultApiUrl);
     _loadServerConfig();
+
+    _exportPasswordController.addListener(_validateExportForm);
+    _exportConfirmPasswordController.addListener(_validateExportForm);
+  }
+
+  void _validateExportForm() {
+    setState(() {
+      final pw = _exportPasswordController.text;
+      final confirm = _exportConfirmPasswordController.text;
+      final path = _exportFolderPath;
+
+      // Password validation
+      if (pw.isEmpty) {
+        _passwordError = null; // no error when empty — user hasn't typed yet
+      } else if (pw.length < 6) {
+        _passwordError = 'Password must be at least 6 characters';
+      } else {
+        _passwordError = null;
+      }
+
+      // Confirm password validation
+      if (confirm.isEmpty) {
+        _confirmPasswordError = null;
+      } else if (pw != confirm) {
+        _confirmPasswordError = 'Passwords do not match';
+      } else {
+        _confirmPasswordError = null;
+      }
+
+      // Folder validation
+      if (path == null) {
+        _folderError = null;
+      } else if (!Directory(path).existsSync()) {
+        _folderError = 'Selected folder does not exist';
+      } else {
+        _folderError = null;
+      }
+    });
   }
 
   @override
   void dispose() {
     _wsUrlController.dispose();
     _apiUrlController.dispose();
+    _exportPasswordController.removeListener(_validateExportForm);
     _exportPasswordController.dispose();
+    _exportConfirmPasswordController.removeListener(_validateExportForm);
+    _exportConfirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -446,6 +503,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ── Export Section ─────────────────────────────────────────────────
 
   Widget _buildExportSection(bool isDark) {
+    final bgColor = isDark ? Colors.white10 : Colors.red.shade50;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -469,26 +529,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: isDark ? Colors.white54 : Colors.black45,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+
+                // ── Password ─────────────────────────────────────────────
                 TextField(
                   controller: _exportPasswordController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Password',
-                    hintText: 'Enter export password',
-                    prefixIcon: Icon(CupertinoIcons.lock),
-                    border: OutlineInputBorder(),
+                    hintText: '6+ characters',
+                    prefixIcon: const Icon(CupertinoIcons.lock),
+                    border: const OutlineInputBorder(),
+                    errorText: _passwordError,
+                    errorMaxLines: 2,
                   ),
                   obscureText: true,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
+                  style: TextStyle(color: textColor),
                   onSubmitted: (_) => _handleExport(),
                 ),
+                if (_passwordError != null) const SizedBox(height: 4),
+
                 const SizedBox(height: 12),
+
+                // ── Confirm Password ──────────────────────────────────────
+                TextField(
+                  controller: _exportConfirmPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm Password',
+                    hintText: 'Re-enter password',
+                    prefixIcon: const Icon(CupertinoIcons.lock),
+                    border: const OutlineInputBorder(),
+                    errorText: _confirmPasswordError,
+                    errorMaxLines: 2,
+                  ),
+                  obscureText: true,
+                  style: TextStyle(color: textColor),
+                  onSubmitted: (_) => _handleExport(),
+                ),
+                if (_confirmPasswordError != null) const SizedBox(height: 4),
+
+                const SizedBox(height: 12),
+
+                // ── Folder Picker ─────────────────────────────────────────
+                InkWell(
+                  onTap: _pickExportFolder,
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Export Folder',
+                      hintText: 'Click to select a folder',
+                      prefixIcon: const Icon(CupertinoIcons.folder),
+                      suffixIcon: const Icon(CupertinoIcons.chevron_right),
+                      border: const OutlineInputBorder(),
+                      errorText: _folderError,
+                      errorMaxLines: 2,
+                    ),
+                    child: Text(
+                      _exportFolderPath ?? 'No folder selected',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _exportFolderPath != null
+                            ? textColor
+                            : (isDark ? Colors.white38 : Colors.black38),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_folderError != null) const SizedBox(height: 4),
+
+                const SizedBox(height: 16),
+
+                // ── Export Button ─────────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _isExporting ? null : _handleExport,
+                    onPressed: (!_exportValid || _isExporting)
+                        ? null
+                        : _handleExport,
                     icon: _isExporting
                         ? const SizedBox(
                             width: 18,
@@ -507,6 +622,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+
+                // ── Summary hint ──────────────────────────────────────────
+                if (!_exportValid && _hasAnyInput())
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            size: 18, color: Colors.red.shade400),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _buildErrorSummary(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade400,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -515,17 +658,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _handleExport() async {
-    final password = _exportPasswordController.text.trim();
-    if (password.isEmpty) {
-      showToast(context, 'Please enter the export password');
-      return;
+  bool _hasAnyInput() {
+    return _exportPasswordController.text.isNotEmpty ||
+        _exportConfirmPasswordController.text.isNotEmpty ||
+        _exportFolderPath != null;
+  }
+
+  String _buildErrorSummary() {
+    final parts = <String>[];
+    if (_passwordError != null) parts.add(_passwordError!);
+    if (_confirmPasswordError != null) parts.add(_confirmPasswordError!);
+    if (_folderError != null) parts.add(_folderError!);
+    if (parts.isEmpty) {
+      return 'Please fill in all required fields';
     }
+    return parts.join('\n');
+  }
+
+  Future<void> _pickExportFolder() async {
+    final result = await FilePicker.getDirectoryPath(
+      dialogTitle: 'Select Export Folder',
+    );
+    if (result != null) {
+      setState(() {
+        _exportFolderPath = result;
+      });
+      _validateExportForm();
+    }
+  }
+
+  Future<void> _handleExport() async {
+    _validateExportForm();
+    if (!_exportValid) return;
+
+    final password = _exportPasswordController.text.trim();
+    final folder = _exportFolderPath!;
 
     setState(() => _isExporting = true);
 
     try {
-      // Load server config to get the API URL
       final config = await ServerConfigStore.load();
       final apiService = ApiService(baseUrl: config.apiUrl);
 
@@ -533,17 +704,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!mounted) return;
 
-      // Save to a file in the documents directory
-      final docDir = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
           .split('.')
           .first;
-      final filePath = '${docDir.path}/hermes-export-$timestamp.zip';
+      final filePath = '$folder/hermes-export-$timestamp.zip';
       final file = File(filePath);
       await file.writeAsBytes(zipBytes);
 
+      if (!mounted) return;
       showToast(
         context,
         'Exported to: $filePath',

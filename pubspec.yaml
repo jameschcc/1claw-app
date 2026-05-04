@@ -22,6 +22,7 @@ dependencies:
     path: ./lib/3rd-party/posh_flutter_components
   flutter_background_service: ^5.0.5
   flutter_local_notifications: ^18.0.1
+  file_picker: ^11.0.2
 
 dev_dependencies:
   flutter_test:
