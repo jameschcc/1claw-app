@@ -463,7 +463,9 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                             if (_filterQuery.isNotEmpty)
-                              GestureDetector(
+                              MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
                                 onTap: () {
                                   _filterController.clear();
                                   setState(() => _filterQuery = '');
@@ -476,6 +478,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     color: isDark ? Colors.white38 : Colors.black38,
                                   ),
                                 ),
+                              ),
                               ),
                             const SizedBox(width: 4),
                             // Sort by time
@@ -1002,6 +1005,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hoverStates[key] = true),
       onExit: (_) => setState(() => _hoverStates[key] = false),
       child: btn,
@@ -1018,6 +1022,7 @@ class _HomeScreenState extends State<HomeScreen>
     final isHovered = _hoverStates[key] ?? false;
 
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hoverStates[key] = true),
       onExit: (_) => setState(() => _hoverStates[key] = false),
       child: GestureDetector(

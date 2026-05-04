@@ -1125,7 +1125,9 @@ class _ChatPanelState extends State<ChatPanel> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Container(
                       decoration: BoxDecoration(
                         color: isThinking
                             ? const Color(0xFFE81123)
@@ -1140,6 +1142,7 @@ class _ChatPanelState extends State<ChatPanel> {
                         onPressed: isThinking ? _confirmCancel : _sendMessage,
                       ),
                     ),
+                  ),
                   ],
               );
             },
