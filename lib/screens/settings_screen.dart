@@ -169,6 +169,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 24),
                 _buildAboutSection(isDark),
                 const SizedBox(height: 24),
+                _buildVoiceSection(isDark),
+                const SizedBox(height: 24),
                 _buildExportSection(isDark),
                 const SizedBox(height: 24),
                 _buildConnectionSection(isDark),
@@ -498,6 +500,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     }
+  }
+
+  // ── Voice Input Section ──────────────────────────────────────────
+
+  Widget _buildVoiceSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader('Voice Input'),
+        const SizedBox(height: 8),
+        Card(
+          child: Consumer<FontSettingsProvider>(
+            builder: (context, fontProvider, _) {
+              return SwitchListTile(
+                secondary: Icon(
+                  fontProvider.voicesEnabled
+                      ? CupertinoIcons.mic_fill
+                      : CupertinoIcons.mic,
+                  color: fontProvider.voicesEnabled
+                      ? AppConstants.primaryBlue
+                      : null,
+                ),
+                title: const Text('Enable voice input'),
+                subtitle: const Text(
+                  'Microphone button in chat text field',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: fontProvider.voicesEnabled,
+                onChanged: (val) => fontProvider.setVoicesEnabled(val),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   // ── Export Section ─────────────────────────────────────────────────

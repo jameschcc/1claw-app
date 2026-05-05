@@ -9,6 +9,7 @@ import '../config/constants.dart';
 import '../models/agent_profile.dart';
 import '../models/chat_message.dart';
 import '../providers/chat_provider.dart';
+import '../providers/font_settings_provider.dart';
 import 'chat_bubble.dart';
 import 'thinking_indicator.dart';
 import 'toast.dart';
@@ -1204,9 +1205,10 @@ class _ChatPanelState extends State<ChatPanel> {
                           horizontal: 20,
                           vertical: 12,
                         ),
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: MouseRegion(
+                        suffixIcon: context.read<FontSettingsProvider>().voicesEnabled
+                            ? Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: GestureDetector(
                               onTap: _toggleListening,
@@ -1234,8 +1236,8 @@ class _ChatPanelState extends State<ChatPanel> {
                               ),
                             ),
                           ),
-                        ),
-                      ),
+                        ) : null,
+                    ),
                       style: TextStyle(
                         color: isDark ? Colors.white : Colors.black87,
                       ),
