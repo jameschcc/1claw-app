@@ -1163,21 +1163,23 @@ class _ChatPanelState extends State<ChatPanel> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isThinking
-                            ? const Color(0xFFE81123)
-                            : color,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        iconSize: 20,
-                        icon: isThinking
-                            ? const Icon(CupertinoIcons.stop, color: Colors.white)
-                            : const Icon(CupertinoIcons.paperplane, color: Colors.white),
-                        onPressed: isThinking ? _confirmCancel : _sendMessage,
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Material(
+                      color: isThinking
+                          ? const Color(0xFFE81123)
+                          : color,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        mouseCursor: SystemMouseCursors.click,
+                        onTap: isThinking ? _confirmCancel : _sendMessage,
+                        child: Icon(
+                          isThinking ? CupertinoIcons.stop : CupertinoIcons.paperplane,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
