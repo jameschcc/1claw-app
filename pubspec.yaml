@@ -25,6 +25,7 @@ dependencies:
   file_picker: ^11.0.2
   posh_voice_input:
     path: ./lib/3rd-party/posh_voice_input
+  fuzzy: ^0.5.1
 
 dev_dependencies:
   flutter_test:

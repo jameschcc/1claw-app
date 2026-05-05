@@ -15,6 +15,7 @@ import '../widgets/connection_indicator.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/user_list_item.dart';
 import '../widgets/toast.dart';
+import '../widgets/profile_quick_panel.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
 
@@ -293,7 +294,20 @@ class _HomeScreenState extends State<HomeScreen>
                 )
               : profiles.first;
 
-          return Row(
+          return Focus(
+            autofocus: true,
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent &&
+                  HardwareKeyboard.instance.isControlPressed) {
+                if (event.logicalKey == LogicalKeyboardKey.keyP ||
+                    event.logicalKey == LogicalKeyboardKey.keyR) {
+                  _showQuickPanel(provider);
+                  return KeyEventResult.handled;
+                }
+              }
+              return KeyEventResult.ignored;
+            },
+            child: Row(
             children: [
 // ── Toolbar (60px) — darker gray, gear at bottom ──
               _buildToolbar(isDark, provider),
@@ -542,9 +556,10 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
+    ),
     );
   }
 
@@ -911,6 +926,18 @@ class _HomeScreenState extends State<HomeScreen>
       if (context.mounted) {
         showToast(context, 'Failed: $e');
       }
+    }
+  }
+
+  /// Show the Ctrl+P / Ctrl+R quick profile panel.
+  Future<void> _showQuickPanel(ProfilesProvider provider) async {
+    final selected = await ProfileQuickPanel.show(
+      context,
+      profiles: provider.profiles,
+      activeProfileId: provider.activeProfileId,
+    );
+    if (selected != null && context.mounted) {
+      provider.setActiveProfile(selected.id);
     }
   }
 
