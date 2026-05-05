@@ -992,8 +992,7 @@ class _HomeScreenState extends State<HomeScreen>
               : Colors.transparent,
           borderRadius: BorderRadius.circular(22),
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
+        child: GestureDetector(
           onTap: onTap,
           child: Center(child: icon),
         ),
