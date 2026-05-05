@@ -36,6 +36,7 @@ class ChatBubble extends StatefulWidget {
   final ChatMessage message;
   final bool isReplyTarget;
   final VoidCallback? onReply;
+  final VoidCallback? onDelete;
   final String? profileName;
   final bool showRetry;
   final bool isFailed;
@@ -49,6 +50,7 @@ class ChatBubble extends StatefulWidget {
     required this.message,
     this.isReplyTarget = false,
     this.onReply,
+    this.onDelete,
     this.profileName,
     this.showRetry = false,
     this.isFailed = false,
@@ -573,6 +575,20 @@ class _ChatBubbleState extends State<ChatBubble>
             ),
           ),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: const SizedBox(
+            width: 120,
+            child: Row(
+              children: [
+                Icon(CupertinoIcons.delete, size: 18, color: Colors.redAccent),
+                SizedBox(width: 10),
+                Text('Delete', style: TextStyle(color: Colors.redAccent)),
+              ],
+            ),
+          ),
+        ),
       ],
     ).then((value) {
       if (!mounted) return;
@@ -586,6 +602,9 @@ class _ChatBubbleState extends State<ChatBubble>
           break;
         case 'reply':
           widget.onReply?.call();
+          break;
+        case 'delete':
+          widget.onDelete?.call();
           break;
       }
     });

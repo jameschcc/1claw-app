@@ -341,6 +341,12 @@ class WebSocketService {
     _send(WsMessage(type: 'get_profile_history', profileId: profileId));
   }
 
+  /// Delete a message by ID — removes from server DB and broadcasts to all clients.
+  void deleteMessage(String messageId, {String? profileId}) {
+    if (!_connected) return;
+    _send(WsMessage(type: 'delete_message', id: messageId, profileId: profileId ?? ''));
+  }
+
   /// Send a raw JSON-serializable object.
   void _send(WsMessage msg) {
     try {

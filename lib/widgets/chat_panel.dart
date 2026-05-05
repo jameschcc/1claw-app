@@ -880,6 +880,7 @@ class _ChatPanelState extends State<ChatPanel> {
                                   flashMessageId: _flashingMessageId,
                                   isReplyTarget: chatProvider.replyTarget?.id == msg.id,
                                   onReply: () => chatProvider.setReplyTarget(msg),
+                                  onDelete: () => chatProvider.deleteMessage(msg.id),
                                   showRetry: needsRetry,
                                   isFailed: isFailed,
                                   onRetry: needsRetry

@@ -257,6 +257,18 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Delete a message from the conversation — removes locally and tells server.
+  void deleteMessage(String messageId) {
+    final profileId = _currentProfileId;
+    final conversation = _getConversation();
+    conversation.removeWhere((m) => m.id == messageId);
+    _activeMessageIds.remove(messageId);
+    _failedMessageIds.remove(messageId);
+    _agentResponseIds.remove(messageId);
+    notifyListeners();
+    _wsService.deleteMessage(messageId, profileId: profileId);
+  }
+
   void clearReplyTarget() {
     _replyTarget = null;
     notifyListeners();
@@ -504,6 +516,19 @@ class ChatProvider extends ChangeNotifier {
           _reasoningTexts[profileId] = '';
           _activeMessageIds[profileId] = null;
           _saveHistory();
+          notifyListeners();
+        }
+        break;
+
+      case 'message_deleted':
+        // Message deleted by another client — remove from local state
+        if (msg.id != null) {
+          for (final conv in _conversations.values) {
+            conv.removeWhere((m) => m.id == msg.id);
+          }
+          _activeMessageIds.remove(msg.id);
+          _failedMessageIds.remove(msg.id);
+          _agentResponseIds.remove(msg.id);
           notifyListeners();
         }
         break;
