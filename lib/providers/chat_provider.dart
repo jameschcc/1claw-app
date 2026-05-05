@@ -718,42 +718,14 @@ class ChatProvider extends ChangeNotifier {
   }
 
   String _mergeReasoningText(String current, String incoming) {
-    if (current.isEmpty) {
-      return incoming;
-    }
-    if (incoming.isEmpty || incoming == current) {
-      return current;
-    }
-    if (incoming.startsWith(current)) {
-      return incoming;
-    }
-    if (current.startsWith(incoming)) {
-      return current;
-    }
-
-    final overlap = _reasoningOverlapLength(current, incoming);
-    if (overlap > 1) {
-      return current + incoming.substring(overlap);
-    }
-
-    // No overlap — just concatenate directly without inserting spaces.
-    // Streaming chunks from LLM providers are self-contained fragments;
-    // any space between words is already part of the chunks. Inserting
-    // extra spaces breaks CJK text and other scripts.
+    // Direct concatenation. Reasoning chunks are incremental token deltas
+    // from the LLM — each token carries its own boundary (spaces are part
+    // of the tokens). Overlap detection causes false matches at word
+    // boundaries (e.g. "in" matching between "think" and "ing") that eat
+    // characters. Just append, no fancy logic.
+    if (current.isEmpty) return incoming;
+    if (incoming.isEmpty) return current;
     return '$current$incoming';
-  }
-
-  int _reasoningOverlapLength(String current, String incoming) {
-    final maxOverlap = current.length < incoming.length
-        ? current.length
-        : incoming.length;
-    for (var length = maxOverlap; length > 0; length--) {
-      if (current.substring(current.length - length) ==
-          incoming.substring(0, length)) {
-        return length;
-      }
-    }
-    return 0;
   }
 
   List<Map<String, String>>? _buildBootstrapHistory(
