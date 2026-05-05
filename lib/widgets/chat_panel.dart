@@ -76,6 +76,7 @@ class _ChatPanelState extends State<ChatPanel> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   bool _speechAvailable = false;
+  String? _lastSpeechError;
 
   @override
   void initState() {
@@ -406,15 +407,24 @@ class _ChatPanelState extends State<ChatPanel> {
   // ── Voice input ────────────────────────────────────────────────
 
   Future<void> _initSpeech() async {
-    final available = await _speech.initialize();
+    _lastSpeechError = null;
+    final available = await _speech.initialize(
+      onError: (err) {
+        debugPrint('Speech init error: ${err.errorMsg}');
+        _lastSpeechError = err.errorMsg;
+      },
+    );
     if (mounted) {
       setState(() => _speechAvailable = available);
+      if (!available && _lastSpeechError == null) {
+        _lastSpeechError = 'Windows需安装语音识别语言包：设置 → 时间和语言 → 语言 → 你的语言 → 语言选项 → 下载语音识别';
+      }
     }
   }
 
   void _startListening() async {
     if (!_speechAvailable) {
-      showToast(context, '语音识别不可用');
+      showToast(context, _lastSpeechError ?? '语音识别不可用——需要安装语音识别语言包');
       return;
     }
     final available = await _speech.hasPermission;
@@ -442,7 +452,6 @@ class _ChatPanelState extends State<ChatPanel> {
       listenOptions: stt.SpeechListenOptions(
         partialResults: true,
       ),
-      localeId: 'zh_CN',
     );
     if (mounted) setState(() => _isListening = true);
   }
