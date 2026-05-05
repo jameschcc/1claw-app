@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:posh_voice_input/posh_voice_input.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
 import '../models/agent_profile.dart';
@@ -74,10 +74,7 @@ class _ChatPanelState extends State<ChatPanel> {
   List<String> _inputHistory = [];
 
   // Voice input
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _isListening = false;
-  bool _speechAvailable = false;
-  String? _lastSpeechError;
+  final PoshVoiceInputService _voiceService = PoshVoiceInputService();
 
   @override
   void initState() {
@@ -96,7 +93,7 @@ class _ChatPanelState extends State<ChatPanel> {
       }
       return KeyEventResult.ignored;
     };
-    _initSpeech();
+    _voiceService.init();
   }
 
   @override
@@ -159,7 +156,7 @@ class _ChatPanelState extends State<ChatPanel> {
     _inputFocus.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
-    _speech.stop();
+    _voiceService.dispose();
     super.dispose();
   }
 
@@ -404,73 +401,6 @@ class _ChatPanelState extends State<ChatPanel> {
     _autoScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
-
-  // ── Voice input ────────────────────────────────────────────────
-
-  Future<void> _initSpeech() async {
-    _lastSpeechError = null;
-    final available = await _speech.initialize(
-      onError: (err) {
-        debugPrint('Speech init error: ${err.errorMsg}');
-        _lastSpeechError = err.errorMsg;
-      },
-    );
-    if (mounted) {
-      setState(() => _speechAvailable = available);
-      if (!available && _lastSpeechError == null) {
-        _lastSpeechError = 'Windows需安装语音识别语言包：设置 → 时间和语言 → 语言 → 你的语言 → 语言选项 → 下载语音识别';
-      }
-    }
-  }
-
-  void _startListening() async {
-    if (!_speechAvailable) {
-      showToast(context, _lastSpeechError ?? '语音识别不可用——需要安装语音识别语言包');
-      return;
-    }
-    final available = await _speech.hasPermission;
-    if (!available) {
-      showToast(context, '需要麦克风权限');
-      return;
-    }
-    await _speech.listen(
-      onResult: (result) {
-        if (result.finalResult) {
-          final text = result.recognizedWords;
-          if (text.isNotEmpty) {
-            final current = _inputController.text;
-            _inputController.text = current.isEmpty
-                ? text
-                : '$current${current.endsWith(' ') ? '' : ' '}$text';
-            _inputController.selection = TextSelection.fromPosition(
-              TextPosition(offset: _inputController.text.length),
-            );
-          }
-        }
-      },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
-      listenOptions: stt.SpeechListenOptions(
-        partialResults: true,
-      ),
-    );
-    if (mounted) setState(() => _isListening = true);
-  }
-
-  void _stopListening() {
-    _speech.stop();
-    if (mounted) setState(() => _isListening = false);
-  }
-
-  void _toggleListening() {
-    if (_isListening) {
-      _stopListening();
-    } else {
-      _startListening();
-    }
-  }
-
-  // ── End voice input ────────────────────────────────────────────
 
   /// Retry sending a message that the agent didn't respond to.
   void _retryMessage(String msgId, String content) {
@@ -1206,37 +1136,23 @@ class _ChatPanelState extends State<ChatPanel> {
                           vertical: 12,
                         ),
                         suffixIcon: context.read<FontSettingsProvider>().voicesEnabled
-                            ? Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              onTap: _toggleListening,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _isListening
-                                      ? const Color(0xFFE81123).withValues(alpha: 0.15)
-                                      : Colors.transparent,
-                                ),
-                                child: Icon(
-                                  _isListening
-                                      ? CupertinoIcons.mic_fill
-                                      : CupertinoIcons.mic,
-                                  size: 18,
-                                  color: _isListening
-                                      ? const Color(0xFFE81123)
-                                      : (isDark
-                                            ? Colors.white38
-                                            : Colors.black38),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ) : null,
+                            ? PoshVoiceInputWidget(
+                                service: _voiceService,
+                                isDark: isDark,
+                                onResult: (text) {
+                                  final current = _inputController.text;
+                                  _inputController.text = current.isEmpty
+                                      ? text
+                                      : '$current${current.endsWith(' ') ? '' : ' '}$text';
+                                  _inputController.selection = TextSelection.fromPosition(
+                                    TextPosition(offset: _inputController.text.length),
+                                  );
+                                },
+                                onError: (err) {
+                                  showToast(context, err);
+                                },
+                              )
+                            : null,
                     ),
                       style: TextStyle(
                         color: isDark ? Colors.white : Colors.black87,

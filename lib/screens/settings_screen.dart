@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:posh_voice_input/posh_voice_input.dart';
 
 import 'dart:io';
 
@@ -513,21 +514,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Card(
           child: Consumer<FontSettingsProvider>(
             builder: (context, fontProvider, _) {
-              return SwitchListTile(
-                secondary: Icon(
-                  fontProvider.voicesEnabled
-                      ? CupertinoIcons.mic_fill
-                      : CupertinoIcons.mic,
-                  color: fontProvider.voicesEnabled
-                      ? AppConstants.primaryBlue
-                      : null,
-                ),
-                title: const Text('Enable voice input'),
-                subtitle: const Text(
-                  'Microphone button in chat text field',
-                  style: TextStyle(fontSize: 12),
-                ),
-                value: fontProvider.voicesEnabled,
+              return PoshVoiceInputSettings(
+                enabled: fontProvider.voicesEnabled,
                 onChanged: (val) => fontProvider.setVoicesEnabled(val),
               );
             },

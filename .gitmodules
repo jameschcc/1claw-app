@@ -4,3 +4,6 @@
 [submodule "lib/3rd-party/posh_flutter_components"]
 	path = lib/3rd-party/posh_flutter_components
 	url = ssh://git@gl.min123.com:58022/john/posh_flutter_components.git
+[submodule "lib/3rd-party/posh_voice_input"]
+	path = lib/3rd-party/posh_voice_input
+	url = ssh://git@gl.min123.com:58022/john/posh_voice_input.git
