@@ -335,7 +335,8 @@ class _HomeScreenState extends State<HomeScreen>
                     // User list
                     Expanded(
                       child: () {
-                        final sorted = _sortProfiles(profiles);
+                        final chatProvider = context.read<ChatProvider>();
+                        final sorted = _sortProfiles(profiles, chatProvider);
                         if (_filterQuery.isEmpty) {
                           // No filtering — show all as one flat list
                           return ListView.builder(
@@ -1049,15 +1050,27 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  /// Sort profiles by server order (most recent first) or alphabetically.
-  List<AgentProfile> _sortProfiles(List<AgentProfile> profiles) {
+  /// Sort profiles by last-message timestamp descending or alphabetically.
+  List<AgentProfile> _sortProfiles(
+    List<AgentProfile> profiles,
+    ChatProvider chatProvider,
+  ) {
+    final sorted = List<AgentProfile>.from(profiles);
     if (_sortBy == 'alpha') {
-      final sorted = List<AgentProfile>.from(profiles);
       sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-      return sorted;
+    } else {
+      // Time sort: by last received message timestamp, descending (most recent first)
+      sorted.sort((a, b) {
+        final ta = chatProvider.getLastMessageTimestamp(a.id);
+        final tb = chatProvider.getLastMessageTimestamp(b.id);
+        // Profiles with messages come first; among equals, newer first
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta); // descending
+      });
     }
-    // Time sort: return as-is (server delivers in connection/activity order)
-    return profiles;
+    return sorted;
   }
 
   // ─── Shared widgets ────────────────────────────────────────────

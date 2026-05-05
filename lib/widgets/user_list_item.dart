@@ -13,6 +13,26 @@ String _avatarLetter(String name) {
   return name[0].toUpperCase();
 }
 
+/// Format a DateTime for the user list timestamp (top-right of each row).
+String _formatTimestamp(DateTime dt) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final msgDate = DateTime(dt.year, dt.month, dt.day);
+
+  if (msgDate == today) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  } else if (msgDate == yesterday) {
+    return 'Yesterday';
+  } else if (dt.year == now.year) {
+    return '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  } else {
+    return '${dt.year.toString().substring(2)}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+}
+
 /// Lighten a color by [amount] in HSL lightness space.
 Color _lighten(Color c, double amount) {
   final hsl = HSLColor.fromColor(c);
@@ -153,37 +173,61 @@ class _UserListItemState extends State<UserListItem> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Name row
+                      // Name row with timestamp on right
                       Row(
                         children: [
-                          if (widget.profile.isPinned)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: Icon(CupertinoIcons.star,
-                                  size: 11, color: Colors.amber),
-                            ),
-                          Flexible(
-                            child: Text(
-                              widget.profile.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                if (widget.profile.isPinned)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: Icon(CupertinoIcons.star,
+                                        size: 11, color: Colors.amber),
+                                  ),
+                                Flexible(
+                                  child: Text(
+                                    widget.profile.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: widget.profile.online
+                                        ? AppConstants.onlineGreen
+                                        : AppConstants.offlineGray,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: widget.profile.online
-                                  ? AppConstants.onlineGreen
-                                  : AppConstants.offlineGray,
-                            ),
+                          // Timestamp on the right
+                          Consumer<ChatProvider>(
+                            builder: (context, chatProvider, _) {
+                              final ts = chatProvider
+                                  .getLastMessageTimestamp(widget.profile.id);
+                              if (ts == null) return const SizedBox.shrink();
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: Text(
+                                  _formatTimestamp(ts),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark ? Colors.white38 : Colors.black38,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

@@ -643,6 +643,14 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Get the timestamp of the last message for a given profile.
+  /// Returns null if no messages exist.
+  DateTime? getLastMessageTimestamp(String profileId) {
+    final msgs = _conversations[profileId];
+    if (msgs == null || msgs.isEmpty) return null;
+    return msgs.last.timestamp;
+  }
+
   /// Get the last message preview for a given profile (for sidebar).
   /// Returns empty string if no messages. Trims newlines for single-line preview.
   String getLastMessageForProfile(String profileId) {
