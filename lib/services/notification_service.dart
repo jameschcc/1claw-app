@@ -28,6 +28,7 @@ class NotificationService {
       MethodChannel('com.claw.claw_app/window_flash');
 
   bool _enabled = true;
+  bool _initialized = false;
   bool get enabled => _enabled;
 
   bool get _isWeb => kIsWeb;
@@ -88,6 +89,8 @@ class NotificationService {
           importance: Importance.high,
         ));
 
+    _initialized = true;
+
     debugPrint('[notif] Notification service initialized');
   }
 
@@ -101,25 +104,31 @@ class NotificationService {
   }) async {
     if (!_enabled || _isWeb) return;
 
-    // Clean up: strip markdown/newlines, truncate to ~120 chars
-    final sanitized = content
-        .replaceAll(RegExp(r'[*_~`#>\[\]()]'), '')
-        .replaceAll(RegExp(r'[\n\r]+'), ' ')
-        .trim();
-    final preview = sanitized.length > 120
-        ? '${sanitized.substring(0, 120)}…'
-        : sanitized;
+    final title = _sanitizeNotificationText(
+      profileName,
+      maxLength: 80,
+      fallback: '1Claw',
+    );
+    final preview = _sanitizeNotificationText(
+      content,
+      maxLength: 120,
+      fallback: 'New message',
+    );
 
-    // Platform-specific notification display
-    if (_isLinux) {
-      await _linuxNotifySend(profileName, preview);
-    } else {
-      await _pluginNotify(profileName, preview);
-    }
+    try {
+      // Platform-specific notification display
+      if (_isLinux) {
+        await _linuxNotifySend(title, preview);
+      } else {
+        await _pluginNotify(title, preview);
+      }
 
-    // Windows taskbar flash (best-effort)
-    if (_isWindows) {
-      await _flashTaskbar();
+      // Windows taskbar flash (best-effort)
+      if (_isWindows) {
+        await _flashTaskbar();
+      }
+    } catch (e) {
+      debugPrint('[notif] Failed to show notification: $e');
     }
   }
 
@@ -140,6 +149,11 @@ class NotificationService {
 
   /// Android / Windows / macOS / iOS: use flutter_local_notifications.
   Future<void> _pluginNotify(String title, String body) async {
+    if (!_initialized) {
+      debugPrint('[notif] Skipped plugin notification before initialization');
+      return;
+    }
+
     const androidDetails = AndroidNotificationDetails(
       '1claw_messages',
       '1Claw Messages',
@@ -169,6 +183,28 @@ class NotificationService {
     final notificationId =
         (DateTime.now().millisecondsSinceEpoch % 100000).abs();
     await _plugin.show(notificationId, title, body, details);
+  }
+
+  String _sanitizeNotificationText(
+    String input, {
+    required int maxLength,
+    required String fallback,
+  }) {
+    final sanitized = input
+        // Remove common markdown punctuation to keep toast text compact.
+        .replaceAll(RegExp(r'[*_~`#>\[\]()]'), '')
+        // Drop ASCII control chars that can break some platform transports.
+        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '')
+        .replaceAll(RegExp(r'[\n\r]+'), ' ')
+        .trim();
+
+    if (sanitized.isEmpty) {
+      return fallback;
+    }
+
+    return sanitized.length > maxLength
+        ? '${sanitized.substring(0, maxLength)}…'
+        : sanitized;
   }
 
   /// Flash Windows taskbar button via MethodChannel.
