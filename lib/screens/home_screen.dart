@@ -148,7 +148,18 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
 
-    return _isWide ? _buildLandscapeLayout() : _buildPortraitLayout();
+    return CallbackShortcuts(
+      bindings: {
+        SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _filterFocus.requestFocus,
+        SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            _filterFocus.requestFocus,
+      },
+      child: Focus(
+        autofocus: true,
+        child: _isWide ? _buildLandscapeLayout() : _buildPortraitLayout(),
+      ),
+    );
   }
 
   void _showReconnectDialog(BuildContext context, ProfilesProvider provider) {
