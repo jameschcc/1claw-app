@@ -250,6 +250,26 @@ class _HomeScreenState extends State<HomeScreen>
                                   : Colors.black38),
                         ),
                       ],
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => _showToolbarDrawer(provider, isDark),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.black.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Text('🔨', style: TextStyle(fontSize: 18)),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -707,6 +727,130 @@ class _HomeScreenState extends State<HomeScreen>
           onTogglePin: () => provider.togglePin(profile.id),
         );
       },
+    );
+  }
+
+  /// Opens a bottom sheet with toolbar actions (portrait mode).
+  void _showToolbarDrawer(ProfilesProvider provider, bool isDark) {
+    final maxWidth = MediaQuery.of(context).size.width * 0.85;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          width: double.infinity,
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          margin: EdgeInsets.symmetric(
+            horizontal: (MediaQuery.of(context).size.width - maxWidth) / 2,
+            vertical: 16,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black26,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  _drawerItem(
+                    icon: CupertinoIcons.person_badge_plus,
+                    label: 'Create Profile',
+                    isDark: isDark,
+                    enabled: provider.isConnected,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showCreateProfileDialog(context, provider);
+                    },
+                  ),
+                  _drawerItem(
+                    icon: CupertinoIcons.doc_on_doc,
+                    label: 'Spawn Duplicate',
+                    isDark: isDark,
+                    enabled: provider.isConnected,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showSpawnDialog(context, provider);
+                    },
+                  ),
+                  Divider(
+                    height: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: isDark ? Colors.white12 : Colors.black12,
+                  ),
+                  _drawerItem(
+                    icon: CupertinoIcons.refresh,
+                    label: 'Refresh Status',
+                    isDark: isDark,
+                    enabled: true,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      if (!provider.isConnected) {
+                        provider.reconnect();
+                      }
+                      _refreshSpinCtrl.forward(from: 0);
+                      provider.requestStatus();
+                    },
+                  ),
+                  _drawerItem(
+                    icon: CupertinoIcons.gear,
+                    label: 'Settings',
+                    isDark: isDark,
+                    enabled: true,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _gearSpinCtrl.forward(from: 0);
+                      _openSettings(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    required bool isDark,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.4,
+      child: ListTile(
+        leading: Icon(icon, size: 22,
+            color: isDark ? Colors.white70 : Colors.black87),
+        title: Text(label,
+            style: TextStyle(
+                fontSize: 15,
+                color: isDark ? Colors.white70 : Colors.black87)),
+        onTap: enabled ? onTap : null,
+        dense: true,
+      ),
     );
   }
 
