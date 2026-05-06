@@ -750,7 +750,7 @@ class ChatProvider extends ChangeNotifier {
     // characters. Just append, no fancy logic.
     if (current.isEmpty) return incoming;
     if (incoming.isEmpty) return current;
-    return '$current$incoming';
+    return '$current $incoming';
   }
 
   List<Map<String, String>>? _buildBootstrapHistory(
