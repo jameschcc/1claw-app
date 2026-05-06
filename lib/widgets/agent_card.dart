@@ -98,36 +98,58 @@ class AgentCard extends StatelessWidget {
                       color: textOnBg(color),
                     ),
                   ),
-                  // Last message preview + unread
+                    // Last message preview + time
                   Consumer<ChatProvider>(
                     builder: (context, chatProvider, _) {
                       final lastMsg = chatProvider
                           .getLastMessageForProfile(profile.id);
+                      final ts = chatProvider
+                          .getLastMessageTimestamp(profile.id);
                       final unread = chatProvider.unreadCount(profile.id);
                       final hasUnread = unread > 0;
-                      if (lastMsg.isEmpty && !hasUnread) {
-                        return const SizedBox(height: 2); // minimal spacer
+                      final hasPreview = lastMsg.isNotEmpty;
+                      if (!hasPreview && !hasUnread && ts == null) {
+                        return const SizedBox(height: 2);
                       }
                       return Padding(
                         padding: const EdgeInsets.only(top: 4, bottom: 2),
-                        child: Text(
-                          lastMsg.isNotEmpty ? lastMsg : '(new messages)',
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.clip,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight:
-                                hasUnread ? FontWeight.w600 : FontWeight.normal,
-                            color: hasUnread
-                                ? textOnBg(color)
-                                : textOnBg(color).withValues(alpha: 0.5),
-                          ),
+                        child: Column(
+                          children: [
+                            if (hasPreview || hasUnread)
+                              Text(
+                                hasPreview ? lastMsg : '(new messages)',
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.clip,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                  color: hasUnread
+                                      ? textOnBg(color)
+                                      : textOnBg(color).withValues(alpha: 0.5),
+                                ),
+                              ),
+                            if (ts != null)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                    top: hasPreview ? 2 : 0),
+                                child: Text(
+                                  _formatTime(ts),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: textOnBg(color)
+                                        .withValues(alpha: 0.45),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       );
                     },
                   ),
-                  const SizedBox(height: 2),
                   // Status + tasks
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -282,6 +304,25 @@ class AgentCard extends StatelessWidget {
                       );
                     },
                   ),
+                  // Last message time (compact)
+                  Consumer<ChatProvider>(
+                    builder: (context, chatProvider, _) {
+                      final ts = chatProvider
+                          .getLastMessageTimestamp(profile.id);
+                      if (ts == null) return const SizedBox(height: 1);
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(
+                          _formatTime(ts),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 7,
+                            color: textOnBg(color).withValues(alpha: 0.45),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 2),
                   // Status dot only (no tasks in compact)
                   Row(
@@ -325,6 +366,21 @@ class AgentCard extends StatelessWidget {
       ),
       ),
     );
+  }
+
+  /// Format a timestamp for compact display on cards.
+  static String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
+    if (dt.isAfter(yesterday)) return 'yesterday';
+    if (dt.year == now.year) {
+      return '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    }
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
   }
 
   void _showContextMenu(BuildContext context) {

@@ -585,11 +585,26 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ─── Portrait profile area: two-column or single group ────────
 
+  /// Compare two profiles by their last message timestamp descending.
+  int _compareByTime(AgentProfile a, AgentProfile b, ChatProvider chat) {
+    final ta = chat.getLastMessageTimestamp(a.id);
+    final tb = chat.getLastMessageTimestamp(b.id);
+    if (ta == null && tb == null) return 0;
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return tb.compareTo(ta);
+  }
+
   Widget _buildProfilesArea(ProfilesProvider provider, bool isDark) {
+    final chatProvider = context.read<ChatProvider>();
     final pinned = provider.pinnedProfiles;
     final unpinned = provider.profiles.where((p) => !p.isPinned).toList();
-    final hasBoth = pinned.isNotEmpty && unpinned.isNotEmpty;
 
+    // Sort each group by last message time descending
+    pinned.sort((a, b) => _compareByTime(a, b, chatProvider));
+    unpinned.sort((a, b) => _compareByTime(a, b, chatProvider));
+
+    final hasBoth = pinned.isNotEmpty && unpinned.isNotEmpty;
     return hasBoth
         ? _buildTwoColumns(pinned, unpinned, provider, isDark)
         : _buildSingleGroup(provider, isDark);
@@ -704,6 +719,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Single group: standard grid when all profiles are the same type.
   Widget _buildSingleGroup(ProfilesProvider provider, bool isDark) {
+    final chatProvider = context.read<ChatProvider>();
+    final sorted = List<AgentProfile>.from(provider.profiles);
+    sorted.sort((a, b) => _compareByTime(a, b, chatProvider));
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 200,
@@ -711,9 +729,9 @@ class _HomeScreenState extends State<HomeScreen>
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: provider.profiles.length,
+      itemCount: sorted.length,
       itemBuilder: (context, index) {
-        final profile = provider.profiles[index];
+        final profile = sorted[index];
         return AgentCard(
           profile: profile,
           isActive: profile.id == provider.activeProfileId,
