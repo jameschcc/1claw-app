@@ -378,7 +378,7 @@ class ChatProvider extends ChangeNotifier {
             _activeMessageIds[profileId] = msg.id;
           }
 
-          final nextReasoning = msg.content?.trim() ?? '';
+          final nextReasoning = msg.content ?? '';
           if (nextReasoning.isNotEmpty) {
             final currentReasoning = _reasoningTexts[profileId] ?? '';
             _reasoningTexts[profileId] = _mergeReasoningText(
@@ -750,7 +750,7 @@ class ChatProvider extends ChangeNotifier {
     // characters. Just append, no fancy logic.
     if (current.isEmpty) return incoming;
     if (incoming.isEmpty) return current;
-    return '$current $incoming';
+    return '$current$incoming';
   }
 
   List<Map<String, String>>? _buildBootstrapHistory(
