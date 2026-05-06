@@ -935,7 +935,8 @@ class _ChatPanelState extends State<ChatPanel> {
             if (target == null) return const SizedBox.shrink();
             final isAgent = target.isAgent;
             return Container(
-              color: isDark ? Colors.black26 : Colors.grey.shade100,
+              // Slightly different from chat background for visual distinction
+              color: isDark ? const Color(0xFF1E2A3A) : Colors.blue.shade50,
               padding: const EdgeInsets.only(left: 12, right: 12, top: 10, bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
