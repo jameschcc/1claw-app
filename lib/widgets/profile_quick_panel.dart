@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fuzzy/fuzzy.dart';
-import 'package:provider/provider.dart';
 import '../models/agent_profile.dart';
 import '../providers/chat_provider.dart';
 
@@ -411,6 +410,7 @@ class _ProfileQuickPanelState extends State<ProfileQuickPanel> {
                                       ),
                                     );
                                   }(),
+                                  const SizedBox(width: 8),
                                   // Active indicator
                                   if (isActive)
                                     Container(
