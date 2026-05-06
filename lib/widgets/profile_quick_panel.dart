@@ -2,7 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fuzzy/fuzzy.dart';
+import 'package:provider/provider.dart';
 import '../models/agent_profile.dart';
+import '../providers/chat_provider.dart';
 
 /// Result returned when the user selects a profile or cancels.
 class QuickPanelResult {
@@ -16,10 +18,12 @@ class QuickPanelResult {
 class ProfileQuickPanel extends StatefulWidget {
   final List<AgentProfile> profiles;
   final String activeProfileId;
+  final ChatProvider chatProvider;
 
   const ProfileQuickPanel({
     super.key,
     required this.profiles,
+    required this.chatProvider,
     this.activeProfileId = '',
   });
 
@@ -27,6 +31,7 @@ class ProfileQuickPanel extends StatefulWidget {
   static Future<AgentProfile?> show(
     BuildContext context, {
     required List<AgentProfile> profiles,
+    required ChatProvider chatProvider,
     String activeProfileId = '',
   }) async {
     final result = await showDialog<QuickPanelResult>(
@@ -34,6 +39,7 @@ class ProfileQuickPanel extends StatefulWidget {
       barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (_) => ProfileQuickPanel(
         profiles: profiles,
+        chatProvider: chatProvider,
         activeProfileId: activeProfileId,
       ),
     );
@@ -55,9 +61,12 @@ class _ProfileQuickPanelState extends State<ProfileQuickPanel> {
     super.initState();
     _controller = TextEditingController();
     _focusNode = FocusNode();
-    _entries = widget.profiles
+    final unsorted = widget.profiles
         .map((p) => _Entry(profile: p, titleMatches: const []))
         .toList();
+    // Default sort: last message time descending (most recent first)
+    _sortByTime(unsorted);
+    _entries = unsorted;
     _selectedIndex = _entries.isNotEmpty ? 0 : -1;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -75,10 +84,12 @@ class _ProfileQuickPanelState extends State<ProfileQuickPanel> {
   void _updateFilter(String value) {
     final query = value.trim();
     if (query.isEmpty) {
+      final unsorted = widget.profiles
+          .map((p) => _Entry(profile: p, titleMatches: const []))
+          .toList();
+      _sortByTime(unsorted);
       setState(() {
-        _entries = widget.profiles
-            .map((p) => _Entry(profile: p, titleMatches: const []))
-            .toList();
+        _entries = unsorted;
         _selectedIndex = _entries.isNotEmpty ? 0 : -1;
       });
       return;
@@ -165,6 +176,38 @@ class _ProfileQuickPanelState extends State<ProfileQuickPanel> {
     }
     final profile = _entries[_selectedIndex].profile;
     Navigator.of(context).pop(QuickPanelResult(selected: profile));
+  }
+
+  void _sortByTime(List<_Entry> entries) {
+    final cp = widget.chatProvider;
+    entries.sort((a, b) {
+      final ta = cp.getLastMessageTimestamp(a.profile.id);
+      final tb = cp.getLastMessageTimestamp(b.profile.id);
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return tb.compareTo(ta); // descending
+    });
+  }
+
+  /// Format a DateTime for the timestamp (same style as sidebar).
+  String _formatTimestamp(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final msgDate = DateTime(dt.year, dt.month, dt.day);
+
+    if (msgDate == today) {
+      final h = dt.hour.toString().padLeft(2, '0');
+      final m = dt.minute.toString().padLeft(2, '0');
+      return '$h:$m';
+    } else if (msgDate == yesterday) {
+      return 'Yesterday';
+    } else if (dt.year == now.year) {
+      return '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    } else {
+      return '${dt.year.toString().substring(2)}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    }
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -347,6 +390,27 @@ class _ProfileQuickPanelState extends State<ProfileQuickPanel> {
                                       isSelected,
                                     ),
                                   ),
+                                  // Last message timestamp (same style as sidebar)
+                                  () {
+                                    final cp = widget.chatProvider;
+                                    final ts = cp
+                                        .getLastMessageTimestamp(profile.id);
+                                    if (ts == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(left: 4),
+                                      child: Text(
+                                        _formatTimestamp(ts),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? Colors.white38
+                                              : Colors.black38,
+                                        ),
+                                      ),
+                                    );
+                                  }(),
                                   // Active indicator
                                   if (isActive)
                                     Container(

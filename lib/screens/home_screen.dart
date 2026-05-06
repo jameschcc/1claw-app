@@ -931,9 +931,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Show the Ctrl+P / Ctrl+R quick profile panel.
   Future<void> _showQuickPanel(ProfilesProvider provider) async {
+    final chatProvider = context.read<ChatProvider>();
     final selected = await ProfileQuickPanel.show(
       context,
       profiles: provider.profiles,
+      chatProvider: chatProvider,
       activeProfileId: provider.activeProfileId,
     );
     if (selected != null && context.mounted) {
