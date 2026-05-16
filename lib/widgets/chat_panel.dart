@@ -93,7 +93,6 @@ class _ChatPanelState extends State<ChatPanel> {
       }
       return KeyEventResult.ignored;
     };
-    _voiceService.init();
   }
 
   @override
