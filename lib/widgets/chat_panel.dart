@@ -182,6 +182,11 @@ class _ChatPanelState extends State<ChatPanel> {
       // Enter — send message (unless Shift held for multi-line)
       if (event.logicalKey == LogicalKeyboardKey.enter) {
         if (!HardwareKeyboard.instance.isShiftPressed) {
+          // Don't send if IME is composing (e.g. typing pinyin on macOS/Windows)
+          final composing = _inputController.value.composing;
+          if (composing.isValid && composing.start != composing.end) {
+            return KeyEventResult.ignored;
+          }
           _sendMessage();
           return KeyEventResult.handled;
         }
