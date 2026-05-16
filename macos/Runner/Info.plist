@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>1Claw uses the microphone for voice input</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>1Claw uses speech recognition to convert voice to text</string>
 </dict>
 </plist>
