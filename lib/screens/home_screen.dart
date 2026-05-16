@@ -1184,19 +1184,19 @@ class _HomeScreenState extends State<HomeScreen>
 
     Widget btn = Opacity(
       opacity: 0.9,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: isHovered
-              ? (isDark
-                  ? Colors.white.withValues(alpha: 0.12)
-                  : Colors.black.withValues(alpha: 0.08))
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: GestureDetector(
-          onTap: onTap,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isHovered
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.08))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+          ),
           child: Center(child: icon),
         ),
       ),
