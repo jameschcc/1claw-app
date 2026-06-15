@@ -148,18 +148,9 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
 
-    return CallbackShortcuts(
-      bindings: {
-        SingleActivator(LogicalKeyboardKey.keyF, control: true):
-            _filterFocus.requestFocus,
-        SingleActivator(LogicalKeyboardKey.keyF, meta: true):
-            _filterFocus.requestFocus,
-      },
-      child: Focus(
-        autofocus: true,
-        child: _isWide ? _buildLandscapeLayout() : _buildPortraitLayout(),
-      ),
-    );
+    // Keyboard shortcuts handled globally via HardwareKeyboard.instance.addHandler()
+    // in initState — independent of Flutter focus state.
+    return _isWide ? _buildLandscapeLayout() : _buildPortraitLayout();
   }
 
   void _showReconnectDialog(BuildContext context, ProfilesProvider provider) {
